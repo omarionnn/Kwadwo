@@ -16,7 +16,8 @@ export default function DemoBanner() {
     useEffect(() => {
         const fetch_ = async () => {
             try {
-                const res = await fetch("http://localhost:8000/config");
+                const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+                const res = await fetch(`${apiBase}/config`);
                 if (res.ok) setConfig(await res.json());
             } catch {
                 setConfig(null);
@@ -55,7 +56,7 @@ export default function DemoBanner() {
                 <span>
                     Demo number not configured —{" "}
                     <a
-                        href="http://localhost:8000/docs#/Config/setup_vapi_setup_vapi_post"
+                        href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/docs`}
                         target="_blank"
                         rel="noreferrer"
                         style={{ color: "var(--accent-hover)", textDecoration: "underline" }}

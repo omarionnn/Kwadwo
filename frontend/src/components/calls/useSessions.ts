@@ -143,13 +143,13 @@ const SEED: CallSession[] = [
 ];
 
 function mergeUnique(seeds: CallSession[], live: CallSession[]): CallSession[] {
-    const liveIds = new Set(live.map(s => s.call_id));
-    // Remove seed entries that have a real counterpart
-    const deduped = seeds.filter(s => !liveIds.has(s.call_id));
-    // Real sessions always float above demo seeds, then sort by recency within each group
-    const realSorted = live.sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
-    const demoSorted = deduped.sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
-    return [...realSorted, ...demoSorted];
+    if (live.length > 0) {
+        // Once real calls exist, only show the real ones. 
+        // We sort by recency so the latest calls are at the top.
+        return [...live].sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
+    }
+    // Fallback to demo data if the backend is empty
+    return [...seeds].sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
 }
 
 export function useSessions(pollIntervalMs = 5000) {
@@ -159,7 +159,8 @@ export function useSessions(pollIntervalMs = 5000) {
 
     const fetchSessions = useCallback(async () => {
         try {
-            const res = await fetch("http://localhost:8000/sessions");
+            const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+            const res = await fetch(`${apiBase}/sessions`);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const { sessions: live } = await res.json();
             setSessions(mergeUnique(SEED, live));
