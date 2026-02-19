@@ -1,6 +1,6 @@
 # Saafi AI — Voice Agent Platform
 
-A "Toma for Auto" AI voice agent platform for automating dealership calls — service scheduling, lead follow-ups, and inbound inquiries.
+An AI voice agent platform for automating dealership calls — service scheduling, lead follow-ups, and inbound inquiries.
 
 ## Stack
 - **Backend**: FastAPI (Python) + Vapi.ai RTC
