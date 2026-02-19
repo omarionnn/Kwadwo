@@ -2,10 +2,11 @@
 Vapi Orchestrator — event-driven state machine.
 
 Receives parsed Vapi webhook messages and transitions CallSession state
-based on the event type. All side-effects (DMS calls, SMS) happen here.
+based on the event type. All side-effects happen here.
 """
 
 from __future__ import annotations
+import json
 import logging
 from datetime import datetime, timezone
 from typing import Any
@@ -23,7 +24,6 @@ from app.orchestrator.session_store import (
     delete_session,
     get_session,
 )
-from app.dms.mock_dms import dispatch_tool
 
 logger = logging.getLogger("saafi.orchestrator")
 
@@ -68,7 +68,7 @@ async def _on_call_started(session: CallSession) -> dict:
     if not session.created_at:
         session.created_at = datetime.now(timezone.utc).isoformat()
     await save_session(session)
-    return {}  # Vapi handles the greeting via the assistant's firstMessage
+    return {}
 
 
 async def _on_transcript(session: CallSession, message: VapiMessage) -> dict:
@@ -77,28 +77,17 @@ async def _on_transcript(session: CallSession, message: VapiMessage) -> dict:
     if message.transcriptType == "partial":
         return {}
 
-    role_str = message.role  # Now a plain str ("user" | "assistant")
+    role_str = message.role  # plain str: "user" | "assistant"
     if role_str and message.transcript:
         session.transcript.append({
             "role": role_str,
             "text": message.transcript,
         })
 
-    # --- Naive state inference from transcript content (demo-grade) ---
-    text_lower = (message.transcript or "").lower()
-
+    # State transitions based on who is speaking
     if session.state == CallState.GREETING and role_str == "user":
         session.state = CallState.IDENTIFYING
         logger.info(f"[{session.call_id}] → IDENTIFYING")
-
-    elif session.state == CallState.IDENTIFYING and role_str == "user":
-        import re
-        # Match "4872", "4 8 7 2", "four eight seven two" (digit-only for now)
-        vin_match = re.search(r"\b(\d[\s\-]?\d[\s\-]?\d[\s\-]?\d)\b", text_lower)
-        if vin_match:
-            session.vin_last4 = re.sub(r"\s+", "", vin_match.group(1))
-            session.state = CallState.LOOKING_UP
-            logger.info(f"[{session.call_id}] → LOOKING_UP (VIN: {session.vin_last4})")
 
     await save_session(session)
     return {}
@@ -108,8 +97,8 @@ async def _on_function_call(session: CallSession, message: VapiMessage) -> dict:
     """
     Handle a Vapi function-call event.
 
-    Vapi pauses the assistant and waits for us to return a result.
-    We dispatch to the DMS mock and update session state accordingly.
+    The new simplified flow has a single tool: book_service_appointment.
+    We store all collected info directly on the session.
     """
     if not message.functionCall:
         return ToolResult(result={"error": "Missing functionCall payload"}).model_dump()
@@ -119,29 +108,49 @@ async def _on_function_call(session: CallSession, message: VapiMessage) -> dict:
 
     logger.info(f"[{session.call_id}] Tool call: {fn_name}({parameters})")
 
-    result = await dispatch_tool(fn_name, parameters)
+    if fn_name == "book_service_appointment":
+        return await _handle_book_service_appointment(session, parameters)
 
-    # --- Post-tool state transitions ---
-    if fn_name == "lookup_vehicle" and result.get("found"):
-        vehicle = result["vehicle"]
-        session.vehicle_id = vehicle["id"]
-        session.customer_name = vehicle.get("owner_name")
-        session.state = CallState.OFFERING_SLOTS
-        logger.info(f"[{session.call_id}] → OFFERING_SLOTS (vehicle: {vehicle['id']})")
+    # Unknown tool — return gracefully
+    logger.warning(f"[{session.call_id}] Unknown tool: {fn_name}")
+    return ToolResult(result={"error": f"Unknown tool: {fn_name}"}).model_dump()
 
-    elif fn_name == "get_availability":
-        slots = result.get("available_slots", [])
-        session.offered_slots = [s["display"] for s in slots[:3]]
-        session.state = CallState.CONFIRMING
-        logger.info(f"[{session.call_id}] → CONFIRMING ({len(slots)} slots offered)")
 
-    elif fn_name == "book_appointment" and result.get("success"):
-        session.appointment_id = result.get("appointment_id")
-        session.state = CallState.CLOSING
-        logger.info(f"[{session.call_id}] → CLOSING (apt: {session.appointment_id})")
+async def _handle_book_service_appointment(session: CallSession, params: dict) -> dict:
+    """Store the appointment request collected by Sofia during the call."""
+    customer_name = params.get("customer_name", "").strip()
+    phone_number  = params.get("phone_number", "").strip()
+    service_type  = params.get("service_type", "").strip()
+    preferred_time = params.get("preferred_time", "").strip()
+
+    # Update session with collected info
+    session.customer_name = customer_name
+    session.caller_number = phone_number or session.caller_number
+    session.service_type  = service_type
+    session.chosen_slot   = preferred_time
+    session.offered_slots = [service_type] if service_type else session.offered_slots
+
+    # Generate a booking reference
+    import random, string
+    ref = "APT-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    session.appointment_id = ref
+    session.state = CallState.CLOSING
+
+    logger.info(
+        f"[{session.call_id}] Appointment captured: {customer_name} / {phone_number} / "
+        f"{service_type} / {preferred_time} → {ref}"
+    )
 
     await save_session(session)
-    return ToolResult(result=result).model_dump()
+
+    return ToolResult(result={
+        "success": True,
+        "appointment_ref": ref,
+        "message": (
+            f"Got it! I've scheduled {customer_name} for {service_type} on {preferred_time}. "
+            f"Confirmation reference: {ref}. We'll send a text to {phone_number}."
+        ),
+    }).model_dump()
 
 
 async def _on_status_update(session: CallSession, message: VapiMessage) -> dict:
@@ -151,40 +160,71 @@ async def _on_status_update(session: CallSession, message: VapiMessage) -> dict:
 
 async def _on_call_ended(session: CallSession, message: VapiMessage) -> dict:
     logger.info(f"[{session.call_id}] Call ended — reason: {message.call.endedReason}")
+
     session.state = CallState.ENDED
     session.ended_at = datetime.now(timezone.utc).isoformat()
     session.ended_reason = message.call.endedReason
-
-    # Duration — Vapi sends this on the call object directly
     session.duration_seconds = message.call.duration
 
-    # Cost — try call.cost first, then call.costBreakdown.total (different Vapi versions)
-    raw_call = message.model_extra.get("call", {}) if hasattr(message, "model_extra") else {}
+    # Cost — try call.cost first, then call.costBreakdown.total (Vapi versions vary)
     if message.call.cost is not None:
         session.cost_usd = message.call.cost
-    elif isinstance(raw_call, dict):
-        breakdown = raw_call.get("costBreakdown", {})
-        session.cost_usd = breakdown.get("total") if breakdown else None
+    else:
+        call_extra = message.call.model_extra or {}
+        breakdown = call_extra.get("costBreakdown", {})
+        if breakdown:
+            session.cost_usd = breakdown.get("total")
 
-    # ── Extract full transcript from call.messages ────────────────────────────
-    # Vapi includes the complete conversation in call.messages on call-end.
-    # This is more reliable than relying on interim transcript events.
-    call_dict = message.call.model_dump(exclude_none=True)
-    messages_raw = call_dict.get("messages", [])
+    # ── Extract transcript from call.messages ────────────────────────────────
+    # Vapi includes the full conversation in call.messages on call-end.
+    # Log the raw extra so we can debug the exact field name.
+    call_extra = message.call.model_extra or {}
+    logger.info(f"[{session.call_id}] call_extra keys: {list(call_extra.keys())}")
 
-    if messages_raw and not session.transcript:
-        # Only replace if we have no transcript yet (don't overwrite partial transcripts)
+    # Try several known locations Vapi uses across API versions
+    messages_raw = (
+        call_extra.get("messages")         # most common
+        or call_extra.get("transcript")    # some versions send full transcript here
+        or []
+    )
+
+    # Also try via model_dump — includes extra fields
+    if not messages_raw:
+        call_dump = message.call.model_dump()
+        messages_raw = call_dump.get("messages") or call_dump.get("transcript") or []
+
+    logger.info(f"[{session.call_id}] messages_raw count: {len(messages_raw) if isinstance(messages_raw, list) else type(messages_raw)}")
+
+    if messages_raw and isinstance(messages_raw, list) and not session.transcript:
         extracted = []
         for m in messages_raw:
+            if not isinstance(m, dict):
+                continue
             role = m.get("role", "")
-            # Vapi roles: "user", "assistant", "tool" — skip tool/system
-            if role in ("user", "assistant"):
-                text = m.get("message") or m.get("content") or m.get("text") or ""
+            if role in ("user", "assistant", "bot"):
+                # Vapi uses 'message', 'content', or 'text' for the text
+                text = (
+                    m.get("message") or
+                    m.get("content") or
+                    m.get("text") or
+                    ""
+                )
+                if isinstance(text, list):
+                    # GPT-4o sometimes returns content as a list of {type, text} dicts
+                    text = " ".join(
+                        t.get("text", "") for t in text if isinstance(t, dict)
+                    )
                 if text.strip():
-                    extracted.append({"role": role, "text": text.strip()})
+                    extracted.append({
+                        "role": "assistant" if role in ("assistant", "bot") else "user",
+                        "text": text.strip(),
+                    })
+
         if extracted:
             session.transcript = extracted
-            logger.info(f"[{session.call_id}] Extracted {len(extracted)} transcript lines from call.messages")
+            logger.info(f"[{session.call_id}] Extracted {len(extracted)} transcript lines")
+        else:
+            logger.warning(f"[{session.call_id}] messages_raw present but no lines extracted")
 
     await save_session(session)
     return {}

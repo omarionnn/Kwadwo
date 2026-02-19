@@ -102,15 +102,16 @@ class CallState(str, Enum):
 
 
 class CallSession(BaseModel):
-    """Runtime state for a single call — stored in Redis by call_id."""
+    """Runtime state for a single call — stored in-memory by call_id."""
     call_id: str
     state: CallState = CallState.INITIATED
     caller_number: Optional[str] = None
     customer_name: Optional[str] = None
-    vin_last4: Optional[str] = None
+    service_type: Optional[str] = None          # service requested (oil change, brakes, etc.)
+    vin_last4: Optional[str] = None             # kept for backward compat / future use
     vehicle_id: Optional[str] = None          # DMS vehicle record ID
     offered_slots: list[str] = Field(default_factory=list)
-    chosen_slot: Optional[str] = None
+    chosen_slot: Optional[str] = None           # preferred appointment time
     appointment_id: Optional[str] = None
     transcript: list[dict[str, str]] = Field(default_factory=list)
     created_at: Optional[str] = None

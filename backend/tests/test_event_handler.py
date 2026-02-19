@@ -89,76 +89,38 @@ class TestTranscript:
         session = await get_session("test-call")
         assert session.state == CallState.IDENTIFYING
 
-    async def test_vin_in_transcript_moves_to_looking_up(self):
+    async def test_user_name_in_transcript_stays_identifying(self):
+        """Providing a name doesn't change state — Sofia asks for phone + time too."""
         await handle_vapi_event(_make_message("call-start"))
-        # First move to IDENTIFYING
         await handle_vapi_event(_make_message(
             "transcript", role="user",
             transcript="Hi I need an appointment",
             transcriptType="final"
         ))
-        # Then provide VIN
+        # Provide name — state should still be IDENTIFYING
         await handle_vapi_event(_make_message(
             "transcript", role="user",
-            transcript="My VIN ends in 4872.",
+            transcript="My name is Marcus Thompson.",
             transcriptType="final"
         ))
         session = await get_session("test-call")
-        assert session.state == CallState.LOOKING_UP
-        assert session.vin_last4 == "4872"
+        # Still IDENTIFYING — booking only happens when tool fires
+        assert session.state == CallState.IDENTIFYING
 
 
 # ── function-call ─────────────────────────────────────────────────────────────
 
-class TestFunctionCall:
-    async def test_lookup_vehicle_found_moves_to_offering_slots(self):
-        await handle_vapi_event(_make_message("call-start"))
-        msg = _make_message(
-            "function-call",
-            functionCall={"name": "lookup_vehicle", "parameters": {"vin_last4": "4872"}},
-        )
-        result = await handle_vapi_event(msg)
-        session = await get_session("test-call")
-        assert session.state == CallState.OFFERING_SLOTS
-        assert session.vehicle_id == "v-4872"
-        assert session.customer_name == "Marcus Thompson"
-        # Returns ToolResult to Vapi
-        assert "result" in result
-        assert result["result"]["found"] is True
-
-    async def test_lookup_vehicle_not_found_does_not_advance_state(self):
-        await handle_vapi_event(_make_message("call-start"))
-        msg = _make_message(
-            "function-call",
-            functionCall={"name": "lookup_vehicle", "parameters": {"vin_last4": "9999"}},
-        )
-        await handle_vapi_event(msg)
-        session = await get_session("test-call")
-        # Should remain in GREETING (no state advance on failure)
-        assert session.state not in (CallState.OFFERING_SLOTS, CallState.IDENTIFYING)
-
-    async def test_get_availability_moves_to_confirming(self):
-        await handle_vapi_event(_make_message("call-start"))
-        msg = _make_message(
-            "function-call",
-            functionCall={"name": "get_availability", "parameters": {"vehicle_id": "v-4872"}},
-        )
-        result = await handle_vapi_event(msg)
-        session = await get_session("test-call")
-        assert session.state == CallState.CONFIRMING
-        assert "result" in result
-        assert "available_slots" in result["result"]
-
-    async def test_book_appointment_moves_to_closing(self):
+    async def test_book_service_appointment_moves_to_closing(self):
         await handle_vapi_event(_make_message("call-start"))
         msg = _make_message(
             "function-call",
             functionCall={
-                "name": "book_appointment",
+                "name": "book_service_appointment",
                 "parameters": {
-                    "vehicle_id": "v-4872",
-                    "slot_id": "slot-test-001",
                     "customer_name": "Marcus Thompson",
+                    "phone_number": "+14045551234",
+                    "service_type": "Oil Change",
+                    "preferred_time": "Thursday morning at 9 AM",
                 }
             },
         )
@@ -166,23 +128,39 @@ class TestFunctionCall:
         session = await get_session("test-call")
         assert session.state == CallState.CLOSING
         assert session.appointment_id is not None
+        assert session.customer_name == "Marcus Thompson"
+        assert session.service_type == "Oil Change"
+        assert session.chosen_slot == "Thursday morning at 9 AM"
         assert result["result"]["success"] is True
 
-    async def test_missing_function_call_payload_returns_error(self):
-        await handle_vapi_event(_make_message("call-start"))
-        msg = _make_message("function-call")  # no functionCall field
-        result = await handle_vapi_event(msg)
-        assert "result" in result
-        assert "error" in result["result"]
-
-    async def test_unknown_tool_returns_error_result(self):
+    async def test_book_service_appointment_stores_phone_number(self):
         await handle_vapi_event(_make_message("call-start"))
         msg = _make_message(
             "function-call",
-            functionCall={"name": "nonexistent", "parameters": {}},
+            functionCall={
+                "name": "book_service_appointment",
+                "parameters": {
+                    "customer_name": "Sarah Mitchell",
+                    "phone_number": "+14045550293",
+                    "service_type": "Brake Inspection",
+                    "preferred_time": "Friday at 10 AM",
+                }
+            },
+        )
+        await handle_vapi_event(msg)
+        session = await get_session("test-call")
+        assert session.caller_number == "+14045550293"
+
+    async def test_lookup_vehicle_unknown_tool_returns_error(self):
+        """lookup_vehicle no longer exists — should return an error result gracefully."""
+        await handle_vapi_event(_make_message("call-start"))
+        msg = _make_message(
+            "function-call",
+            functionCall={"name": "lookup_vehicle", "parameters": {"vin_last4": "4872"}},
         )
         result = await handle_vapi_event(msg)
         assert "error" in result["result"]
+
 
 
 # ── call-end ──────────────────────────────────────────────────────────────────
@@ -227,7 +205,7 @@ class TestCallEnded:
 
 class TestFullLifecycle:
     async def test_complete_booking_flow(self):
-        """Simulate a complete call from start to booking confirmation."""
+        """Simulate a complete call: start → transcript → book_service_appointment → call-end."""
         call_id = "lifecycle-test"
 
         def msg(event_type, **kwargs):
@@ -238,40 +216,36 @@ class TestFullLifecycle:
         s = await get_session(call_id)
         assert s.state == CallState.GREETING
 
-        # 2. Customer speaks
+        # 2. Customer speaks (greeting → identifying)
         await handle_vapi_event(msg("transcript", role="user",
-            transcript="need appointment", transcriptType="final"))
+            transcript="Hi I need an oil change", transcriptType="final"))
         s = await get_session(call_id)
         assert s.state == CallState.IDENTIFYING
 
-        # 3. Vehicle lookup
-        await handle_vapi_event(msg("function-call",
-            functionCall={"name": "lookup_vehicle", "parameters": {"vin_last4": "3391"}}))
-        s = await get_session(call_id)
-        assert s.state == CallState.OFFERING_SLOTS
-        assert s.vehicle_id == "v-3391"
-
-        # 4. Get availability
-        await handle_vapi_event(msg("function-call",
-            functionCall={"name": "get_availability",
-                          "parameters": {"vehicle_id": "v-3391", "service_type": "brake_inspection"}}))
-        s = await get_session(call_id)
-        assert s.state == CallState.CONFIRMING
-
-        # 5. Book it
+        # 3. Sofia calls book_service_appointment after collecting info
         result = await handle_vapi_event(msg("function-call",
-            functionCall={"name": "book_appointment",
-                          "parameters": {"vehicle_id": "v-3391", "slot_id": "slot-lc",
-                                         "customer_name": "Sarah Mitchell"}}))
+            functionCall={
+                "name": "book_service_appointment",
+                "parameters": {
+                    "customer_name": "Sarah Mitchell",
+                    "phone_number": "+14045550293",
+                    "service_type": "Oil Change",
+                    "preferred_time": "Monday at 10 AM",
+                }
+            }))
         s = await get_session(call_id)
         assert s.state == CallState.CLOSING
         assert s.appointment_id is not None
         assert result["result"]["success"] is True
 
-        # 6. Call ends
+        # 4. Call ends
         await handle_vapi_event(msg("call-end",
             call={"id": call_id, "customer": {"number": "+14045550293"},
                   "endedReason": "customer-ended-call", "cost": 0.004, "duration": 156}))
         s = await get_session(call_id)
         assert s.state == CallState.ENDED
         assert s.cost_usd == pytest.approx(0.004)
+        assert s.customer_name == "Sarah Mitchell"
+        assert s.service_type == "Oil Change"
+
+

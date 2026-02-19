@@ -124,23 +124,31 @@ class TestVapiWebhook:
         assert session is not None
         assert session.state == CallState.GREETING
 
-    def test_function_call_lookup_vehicle_returns_tool_result(self, client):
+    def test_function_call_book_service_appointment_returns_tool_result(self, client):
         # Start call first
         client.post("/vapi/webhook", json={
             "type": "call-start",
             "call": {"id": "wh-003", "customer": {"number": "+14045550001"}}
         })
-        # Now trigger tool call
+        # Trigger booking tool call
         payload = {
             "type": "function-call",
             "call": {"id": "wh-003", "customer": {"number": "+14045550001"}},
-            "functionCall": {"name": "lookup_vehicle", "parameters": {"vin_last4": "4872"}}
+            "functionCall": {
+                "name": "book_service_appointment",
+                "parameters": {
+                    "customer_name": "Marcus Thompson",
+                    "phone_number": "+14045550001",
+                    "service_type": "Oil Change",
+                    "preferred_time": "Thursday at 9 AM",
+                }
+            }
         }
         resp = client.post("/vapi/webhook", json=payload)
         assert resp.status_code == 200
         data = resp.json()
         assert "result" in data
-        assert data["result"]["found"] is True
+        assert data["result"]["success"] is True
 
     def test_webhook_unknown_event_type_returns_200(self, client):
         """

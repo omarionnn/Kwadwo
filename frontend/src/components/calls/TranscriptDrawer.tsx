@@ -117,9 +117,9 @@ export default function TranscriptDrawer({ session, onClose }: Props) {
                     }}
                 >
                     {[
-                        { icon: Package, label: "Vehicle", value: session.vehicle_id ? `VIN …${session.vin_last4}` : "—" },
+                        { icon: Package, label: "Service", value: session.service_type ?? session.offered_slots?.[0] ?? "—" },
                         { icon: Package, label: "Appointment", value: session.appointment_id ?? "None booked" },
-                        { icon: Clock, label: "Duration", value: formatDuration(session.duration_seconds) },
+                        { icon: Clock, label: "Preferred Time", value: session.chosen_slot ?? "—" },
                         { icon: Phone, label: "Cost", value: session.cost_usd ? `$${session.cost_usd.toFixed(4)}` : "—" },
                     ].map(item => {
                         const Icon = item.icon;
