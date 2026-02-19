@@ -2,6 +2,7 @@
 
 import Sidebar from "@/components/sidebar/Sidebar";
 import Topbar from "@/components/sidebar/Topbar";
+import DemoBanner from "@/components/DemoBanner";
 import { Bot, Phone, Users, TrendingUp, ArrowUpRight, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
@@ -34,6 +35,9 @@ export default function OverviewPage() {
         <Topbar title="Overview" subtitle="Saafi AI · Westside Auto Group" />
 
         <main style={{ flex: 1, overflowY: "auto", padding: "24px 28px" }}>
+
+          {/* Demo Banner — shows callable phone number when live */}
+          <DemoBanner />
 
           {/* Stats Grid */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 28 }}>
