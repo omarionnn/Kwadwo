@@ -3,7 +3,7 @@ services:
     name: saafi-backend
     env: docker
     dockerContext: backend
-    dockerfilePath: Dockerfile
+    dockerfilePath: backend/Dockerfile
     plan: free # or starter
     envVars:
       - key: PORT
