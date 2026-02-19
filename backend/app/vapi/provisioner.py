@@ -125,12 +125,12 @@ async def create_assistant(api_key: str, webhook_url: str) -> dict:
     payload = {
         "name": "Saafi — Westside Auto",
         "voice": {
-            "provider": "11labs",
-            "voiceId": "rachel",
+            "provider": "openai",
+            "voiceId": "shimmer",
         },
         "model": {
             "provider": "openai",
-            "model": "gpt-4o-realtime-preview",
+            "model": "gpt-4o",
             "messages": [
                 {"role": "system", "content": SYSTEM_PROMPT}
             ],
@@ -138,7 +138,6 @@ async def create_assistant(api_key: str, webhook_url: str) -> dict:
         },
         "firstMessage": FIRST_MESSAGE,
         "serverUrl": f"{webhook_url}/vapi/webhook",
-        "serverUrlSecret": None,
         "transcriber": {
             "provider": "deepgram",
             "model": "nova-2",
@@ -146,7 +145,6 @@ async def create_assistant(api_key: str, webhook_url: str) -> dict:
         },
         "endCallFunctionEnabled": True,
         "recordingEnabled": True,
-        "hipaaEnabled": False,
     }
 
     async with httpx.AsyncClient(timeout=20) as client:
