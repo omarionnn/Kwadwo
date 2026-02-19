@@ -21,8 +21,13 @@ from app.models.call_models import CallSession, CallState
 @pytest.fixture(autouse=True)
 def clear_store():
     _STORE.clear()
+    from app.orchestrator.session_store import _SESSIONS_FILE
+    if _SESSIONS_FILE.exists():
+        _SESSIONS_FILE.unlink()
     yield
     _STORE.clear()
+    if _SESSIONS_FILE.exists():
+        _SESSIONS_FILE.unlink()
 
 
 @pytest.fixture

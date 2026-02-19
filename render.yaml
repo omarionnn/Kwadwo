@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: saafi-backend
+    env: docker
+    dockerContext: backend
+    dockerfilePath: Dockerfile
+    plan: free # or starter
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: VAPI_API_KEY
+        sync: false
+      - key: VAPI_PHONE_NUMBER_ID
+        sync: false
+      - key: VAPI_ASSISTANT_ID
+        sync: false
+      - key: PUBLIC_WEBHOOK_URL
+        sync: false
+    # Optional: If you want to use Render's persistent disk instead of just memory/file
+    # disk:
+    #   name: saafi-data
+    #   mountPath: /app/data
+    #   sizeGB: 1
