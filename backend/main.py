@@ -10,18 +10,22 @@ from app.orchestrator.event_handler import handle_vapi_event
 from app.orchestrator.session_store import get_all_sessions, get_session
 from app.models.call_models import VapiMessage
 from app.vapi.provisioner import create_assistant, assign_phone_number, get_phone_number_info
+import json as _json
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
 logger = logging.getLogger("saafi.main")
 
-# Runtime state — populated after /setup/vapi is called
+# ── Runtime state ────────────────────────────────────────────────────────────
 _config: dict = {
     "assistant_id": None,
     "phone_number": None,
     "phone_number_id": os.getenv("VAPI_PHONE_NUMBER_ID"),
     "webhook_url": os.getenv("PUBLIC_WEBHOOK_URL"),
 }
+
+# Last raw payload from Vapi (for debugging)
+_last_payload: dict = {}
 
 
 @asynccontextmanager
@@ -144,20 +148,43 @@ async def vapi_webhook(payload: dict):
     We unwrap it here before parsing into VapiMessage.
     Returns either {} or a ToolResult JSON for function-calls.
     """
+    global _last_payload
+    _last_payload = payload  # store for /debug/last-payload
+
     # Unwrap the Vapi envelope
     inner = payload.get("message", payload)
+    evt_type = inner.get("type", "UNKNOWN")
+    call_id  = inner.get("call", {}).get("id", "?")
 
-    logger.info(f"Vapi webhook: type={inner.get('type')} call_id={inner.get('call', {}).get('id')}")
-    logger.debug(f"Raw payload: {payload}")
+    logger.info(f"Vapi webhook RECEIVED: type={evt_type}  call_id={call_id}")
+    logger.info(f"Raw payload keys: {list(inner.keys())}")
+
+    # Log the full payload (truncated for safety)
+    try:
+        payload_str = _json.dumps(inner, default=str)
+        logger.info(f"Payload (first 800 chars): {payload_str[:800]}")
+    except Exception:
+        pass
 
     try:
         message = VapiMessage.model_validate(inner)
     except Exception as e:
-        logger.warning(f"Failed to parse Vapi message: {e}\nPayload: {inner}")
+        logger.warning(f"Failed to parse Vapi message (type={evt_type}): {e}")
+        logger.warning(f"Full inner payload: {inner}")
         return {}  # Don't crash — Vapi expects 200 back regardless
 
     response = await handle_vapi_event(message)
     return response
+
+
+# ---------------------------------------------------------------------------
+# Debug endpoint — see the last raw webhook payload Vapi sent
+# ---------------------------------------------------------------------------
+
+@app.get("/debug/last-payload", tags=["Debug"])
+async def last_payload():
+    """Returns the last raw payload received from Vapi. Useful for debugging tool-call format."""
+    return {"last_payload": _last_payload}
 
 
 # ---------------------------------------------------------------------------

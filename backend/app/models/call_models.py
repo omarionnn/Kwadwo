@@ -13,10 +13,11 @@ from pydantic import BaseModel, Field
 # ---------------------------------------------------------------------------
 
 class VapiEventType(str, Enum):
-    CALL_STARTED = "call-start"
-    CALL_ENDED = "call-end"
-    TRANSCRIPT = "transcript"
-    FUNCTION_CALL = "function-call"
+    CALL_STARTED  = "call-start"
+    CALL_ENDED    = "call-end"
+    TRANSCRIPT    = "transcript"
+    FUNCTION_CALL = "function-call"  # legacy Vapi tool call format
+    TOOL_CALLS    = "tool-calls"     # modern Vapi tool call format (plural)
     SPEECH_UPDATE = "speech-update"
     STATUS_UPDATE = "status-update"
 
@@ -76,8 +77,12 @@ class VapiMessage(BaseModel):
     transcript: Optional[str] = None
     transcriptType: Optional[str] = None  # "partial" | "final"
 
-    # function-call events
+    # legacy function-call events
     functionCall: Optional[dict[str, Any]] = None
+
+    # modern tool-calls events — list of tool calls
+    # Vapi sends: [{"id": "...", "type": "function", "function": {"name": "...", "arguments": {...}}}]
+    toolCallList: Optional[list[dict[str, Any]]] = None
 
     # status-update events
     status: Optional[str] = None

@@ -48,7 +48,11 @@ async def handle_vapi_event(message: VapiMessage) -> dict[str, Any]:
         case VapiEventType.TRANSCRIPT:
             return await _on_transcript(session, message)
         case VapiEventType.FUNCTION_CALL:
+            # Legacy format: {functionCall: {name, parameters}}
             return await _on_function_call(session, message)
+        case VapiEventType.TOOL_CALLS:
+            # Modern format: {toolCallList: [{id, type, function: {name, arguments}}]}
+            return await _on_tool_calls(session, message)
         case VapiEventType.STATUS_UPDATE:
             return await _on_status_update(session, message)
         case VapiEventType.CALL_ENDED:
@@ -95,10 +99,8 @@ async def _on_transcript(session: CallSession, message: VapiMessage) -> dict:
 
 async def _on_function_call(session: CallSession, message: VapiMessage) -> dict:
     """
-    Handle a Vapi function-call event.
-
-    The new simplified flow has a single tool: book_service_appointment.
-    We store all collected info directly on the session.
+    Handle a legacy Vapi function-call event.
+    Format: {type: "function-call", functionCall: {name, parameters}}
     """
     if not message.functionCall:
         return ToolResult(result={"error": "Missing functionCall payload"}).model_dump()
@@ -106,14 +108,69 @@ async def _on_function_call(session: CallSession, message: VapiMessage) -> dict:
     fn_name: str = message.functionCall.get("name", "")
     parameters: dict = message.functionCall.get("parameters", {})
 
-    logger.info(f"[{session.call_id}] Tool call: {fn_name}({parameters})")
+    logger.info(f"[{session.call_id}] [legacy] Tool call: {fn_name}({parameters})")
 
     if fn_name == "book_service_appointment":
         return await _handle_book_service_appointment(session, parameters)
 
-    # Unknown tool — return gracefully
     logger.warning(f"[{session.call_id}] Unknown tool: {fn_name}")
     return ToolResult(result={"error": f"Unknown tool: {fn_name}"}).model_dump()
+
+
+async def _on_tool_calls(session: CallSession, message: VapiMessage) -> dict:
+    """
+    Handle a modern Vapi tool-calls event.
+    Format: {type: "tool-calls", toolCallList: [{id, type, function: {name, arguments}}]}
+    Vapi expects response: {results: [{toolCallId, result}]}
+    """
+    tool_list = message.toolCallList or []
+    # Also check model_extra in case Pydantic didn't map it
+    if not tool_list and hasattr(message, "model_extra"):
+        tool_list = message.model_extra.get("toolCallList") or []
+
+    logger.info(f"[{session.call_id}] [modern] tool-calls: {len(tool_list)} tools")
+
+    if not tool_list:
+        logger.warning(f"[{session.call_id}] tool-calls event with empty toolCallList")
+        return {}
+
+    results = []
+    for tool_call in tool_list:
+        tool_call_id = tool_call.get("id", "")
+        fn   = tool_call.get("function", {})
+        name = fn.get("name", "")
+        # arguments can be a JSON string OR a dict
+        raw_args = fn.get("arguments", {})
+        if isinstance(raw_args, str):
+            import json as _json
+            try:
+                params = _json.loads(raw_args)
+            except Exception:
+                params = {}
+        else:
+            params = raw_args
+
+        logger.info(f"[{session.call_id}] Tool: {name}({params})")
+
+        if name == "book_service_appointment":
+            tool_result = await _handle_book_service_appointment(session, params)
+            result_value = tool_result.get("result", {})
+            # Vapi expects the result as a string in the modern format
+            if isinstance(result_value, dict):
+                result_str = result_value.get("message") or str(result_value)
+            else:
+                result_str = str(result_value)
+        else:
+            logger.warning(f"[{session.call_id}] Unknown tool: {name}")
+            result_str = f"Unknown tool: {name}"
+
+        results.append({
+            "toolCallId": tool_call_id,
+            "result": result_str,
+        })
+
+    return {"results": results}
+
 
 
 async def _handle_book_service_appointment(session: CallSession, params: dict) -> dict:
