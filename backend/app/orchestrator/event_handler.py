@@ -77,19 +77,27 @@ async def _on_call_started(session: CallSession) -> dict:
 
 async def _on_transcript(session: CallSession, message: VapiMessage) -> dict:
     """Append final transcript lines and infer state transitions from content."""
-    # Only process final transcripts (not partial)
-    if message.transcriptType == "partial":
-        return {}
+    # Vapi sends 'transcript' field, but might use 'message' or 'content' in some versions
+    text = (
+        message.transcript or
+        (message.model_extra or {}).get("message") or
+        (message.model_extra or {}).get("content") or
+        ""
+    )
 
-    role_str = message.role  # plain str: "user" | "assistant"
-    if role_str and message.transcript:
+    if message.role and text:
+        # Avoid duplicates if we're getting both partial and final
+        # For now, we only append if it's final or if transcriptType is missing
+        if message.transcriptType == "partial":
+            return {}
+
         session.transcript.append({
-            "role": role_str,
-            "text": message.transcript,
+            "role": "assistant" if message.role in ("assistant", "bot") else "user",
+            "text": text.strip(),
         })
 
     # State transitions based on who is speaking
-    if session.state == CallState.GREETING and role_str == "user":
+    if session.state == CallState.GREETING and message.role == "user":
         session.state = CallState.IDENTIFYING
         logger.info(f"[{session.call_id}] → IDENTIFYING")
 
@@ -242,15 +250,23 @@ async def _on_call_ended(session: CallSession, message: VapiMessage) -> dict:
     messages_raw = (
         call_extra.get("messages")         # most common
         or call_extra.get("transcript")    # some versions send full transcript here
+        or call_extra.get("artifact", {}).get("messages")
+        or call_extra.get("analysis", {}).get("transcript")
         or []
     )
 
     # Also try via model_dump — includes extra fields
     if not messages_raw:
         call_dump = message.call.model_dump()
-        messages_raw = call_dump.get("messages") or call_dump.get("transcript") or []
+        messages_raw = (
+            call_dump.get("messages")
+            or call_dump.get("transcript")
+            or call_dump.get("artifact", {}).get("messages")
+            or call_dump.get("analysis", {}).get("transcript")
+            or []
+        )
 
-    logger.info(f"[{session.call_id}] messages_raw count: {len(messages_raw) if isinstance(messages_raw, list) else type(messages_raw)}")
+    logger.info(f"[{session.call_id}] messages_raw count: {len(messages_raw) if isinstance(messages_raw, list) else 0}")
 
     if messages_raw and isinstance(messages_raw, list) and not session.transcript:
         extracted = []

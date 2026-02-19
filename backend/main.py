@@ -7,7 +7,7 @@ import os
 from dotenv import load_dotenv
 
 from app.orchestrator.event_handler import handle_vapi_event
-from app.orchestrator.session_store import get_all_sessions, get_session
+from app.orchestrator.session_store import get_all_sessions, get_session, _load_from_disk
 from app.models.call_models import VapiMessage
 from app.vapi.provisioner import create_assistant, assign_phone_number, get_phone_number_info
 import json as _json
@@ -16,9 +16,9 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
 logger = logging.getLogger("saafi.main")
 
-# ── Runtime state ────────────────────────────────────────────────────────────
+# ── Runtime state ─────────────────────────────────────────────────────────────
 _config: dict = {
-    "assistant_id": None,
+    "assistant_id": os.getenv("VAPI_ASSISTANT_ID"),   # pre-provisioned assistant
     "phone_number": None,
     "phone_number_id": os.getenv("VAPI_PHONE_NUMBER_ID"),
     "webhook_url": os.getenv("PUBLIC_WEBHOOK_URL"),
@@ -31,23 +31,47 @@ _last_payload: dict = {}
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Saafi AI Orchestrator starting up...")
-    # Auto-provision if keys are present and we have no assistant yet
-    api_key = os.getenv("VAPI_API_KEY")
-    phone_id = os.getenv("VAPI_PHONE_NUMBER_ID")
-    webhook = os.getenv("PUBLIC_WEBHOOK_URL")
-    if api_key and api_key != "your_vapi_api_key_here" and phone_id and webhook:
+
+    # ── Load persisted call sessions from disk ────────────────────────────
+    _load_from_disk()
+
+    api_key  = os.getenv("VAPI_API_KEY", "")
+    phone_id = os.getenv("VAPI_PHONE_NUMBER_ID", "")
+    webhook  = os.getenv("PUBLIC_WEBHOOK_URL", "")
+    saved_asst = os.getenv("VAPI_ASSISTANT_ID", "")
+
+    # ── If we already have an assistant ID, just look up the phone number ─
+    if saved_asst and api_key and phone_id:
         try:
-            logger.info("Auto-provisioning Vapi assistant from env vars...")
+            info = await get_phone_number_info(api_key, phone_id)
+            _config["assistant_id"] = saved_asst
+            _config["phone_number"] = info.get("number")
+            _config["webhook_url"]  = webhook
+            logger.info(f"Using stored assistant {saved_asst} → phone {_config['phone_number']}")
+        except Exception as e:
+            logger.warning(f"Could not fetch phone number info: {e}")
+
+    # ── Otherwise provision a brand-new assistant ─────────────────────────
+    elif api_key and api_key != "your_vapi_api_key_here" and phone_id and webhook:
+        try:
+            logger.info("Auto-provisioning NEW Vapi assistant from env vars...")
             assistant = await create_assistant(api_key, webhook)
             await assign_phone_number(api_key, phone_id, assistant["id"])
             info = await get_phone_number_info(api_key, phone_id)
             _config["assistant_id"] = assistant["id"]
             _config["phone_number"] = info.get("number")
+            _config["webhook_url"]  = webhook
             logger.info(f"Auto-provisioned: {_config['phone_number']} → assistant {assistant['id']}")
+            logger.info(f"Add VAPI_ASSISTANT_ID={assistant['id']} to .env to avoid re-provisioning")
         except Exception as e:
             logger.warning(f"Auto-provision skipped: {e}")
+
+    else:
+        logger.info("No VAPI_API_KEY/PHONE/WEBHOOK set — skipping provisioning (tests OK)")
+
     yield
     logger.info("Saafi AI Orchestrator shutting down.")
+
 
 
 app = FastAPI(
@@ -207,4 +231,6 @@ async def get_session_detail(call_id: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # Use PORT from environment (default to 8000 for local dev)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)

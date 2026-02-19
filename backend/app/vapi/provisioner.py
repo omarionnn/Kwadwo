@@ -111,6 +111,15 @@ async def create_assistant(api_key: str, webhook_url: str) -> dict:
         },
         "firstMessage": FIRST_MESSAGE,
         "serverUrl": f"{webhook_url}/vapi/webhook",
+        "serverMessages": [
+            "assistant.started",
+            "end-of-call-report",
+            "transcript",
+            "tool-calls",
+            "status-update",
+            "speech-update",
+            "hang"
+        ],
         "transcriber": {
             "provider": "deepgram",
             "model": "nova-2",
@@ -131,6 +140,8 @@ async def create_assistant(api_key: str, webhook_url: str) -> dict:
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
             json=payload,
         )
+        if resp.status_code >= 400:
+            logger.error(f"Vapi Error {resp.status_code}: {resp.text}")
         resp.raise_for_status()
         data = resp.json()
         logger.info(f"Created Vapi assistant: {data['id']}")

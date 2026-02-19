@@ -1,19 +1,70 @@
 """
-Session Store — manages CallSession state in an in-memory dict.
+Session Store — CallSession state backed by a JSON file on disk.
 
-In production this is Redis (via `redis.asyncio`). The interface is identical
-so swapping is a single-line change in the factory.
+Writes are synchronous-to-disk (via a thread executor) to survive backend
+restarts without adding Redis as a dependency.
+
+The in-memory dict is used as a fast read cache so hot paths don't hit disk.
 """
 
 from __future__ import annotations
+import asyncio
 import json
+import logging
+import os
+from pathlib import Path
 from typing import Optional
+
 from app.models.call_models import CallSession, CallState
 
+logger = logging.getLogger("saafi.session_store")
 
-# In-memory store {call_id: serialized_session_json}
+# ── Persistence ───────────────────────────────────────────────────────────────
+# Store sessions.json next to the backend/ root, in a data/ folder that is
+# git-ignored so call data never leaks into source control.
+_DATA_DIR  = Path(__file__).parents[3] / "data"   # backend/../data  → project_root/data
+_SESSIONS_FILE = _DATA_DIR / "sessions.json"
+
+# In-memory cache {call_id: CallSession}
 _STORE: dict[str, str] = {}
 
+
+def _ensure_data_dir() -> None:
+    _DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _load_from_disk() -> None:
+    """Load all sessions from disk into the in-memory cache on startup."""
+    _ensure_data_dir()
+    if not _SESSIONS_FILE.exists():
+        return
+    try:
+        with open(_SESSIONS_FILE, "r") as f:
+            data: dict = json.load(f)
+        for call_id, raw in data.items():
+            _STORE[call_id] = raw if isinstance(raw, str) else json.dumps(raw)
+        logger.info(f"Loaded {len(_STORE)} sessions from disk ({_SESSIONS_FILE})")
+    except Exception as e:
+        logger.warning(f"Could not load sessions from disk: {e}")
+
+
+def _flush_to_disk() -> None:
+    """Write the current in-memory store to disk (called from a thread executor)."""
+    _ensure_data_dir()
+    try:
+        with open(_SESSIONS_FILE, "w") as f:
+            json.dump(_STORE, f)
+    except Exception as e:
+        logger.error(f"Failed to flush sessions to disk: {e}")
+
+
+async def _persist() -> None:
+    """Async wrapper — runs the sync file-write in a thread so we don't block the event loop."""
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, _flush_to_disk)
+
+
+# ── Public API ────────────────────────────────────────────────────────────────
 
 async def get_session(call_id: str) -> Optional[CallSession]:
     raw = _STORE.get(call_id)
@@ -24,10 +75,12 @@ async def get_session(call_id: str) -> Optional[CallSession]:
 
 async def save_session(session: CallSession) -> None:
     _STORE[session.call_id] = session.model_dump_json()
+    await _persist()
 
 
 async def delete_session(call_id: str) -> None:
     _STORE.pop(call_id, None)
+    await _persist()
 
 
 async def get_all_sessions() -> list[CallSession]:
