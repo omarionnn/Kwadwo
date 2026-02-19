@@ -5,28 +5,33 @@ import Topbar from "@/components/sidebar/Topbar";
 import DemoBanner from "@/components/DemoBanner";
 import { Bot, Phone, Users, TrendingUp, ArrowUpRight, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { useSessions, outcomeFromSession, formatDuration, formatTime } from "@/components/calls/useSessions";
+import type { CallSession } from "@/components/calls/useSessions";
 
-const stats = [
-  { label: "Active Agents", value: "2", delta: "+1 this week", icon: Bot, color: "#6366f1" },
-  { label: "Calls Today", value: "38", delta: "+12% vs yesterday", icon: Phone, color: "#10b981" },
-  { label: "Appointments Booked", value: "24", delta: "63% conversion", icon: Users, color: "#f59e0b" },
-  { label: "Avg. Call Duration", value: "2m 14s", delta: "-8s vs last week", icon: TrendingUp, color: "#8b5cf6" },
-];
-
-const recentCalls = [
-  { id: "1", customer: "Marcus T.", vehicle: "2021 Ford F-150", outcome: "Booked", agent: "Alex", time: "8 min ago" },
-  { id: "2", customer: "Sarah M.", vehicle: "2019 Honda Accord", outcome: "Callback", agent: "Jordan", time: "23 min ago" },
-  { id: "3", customer: "David K.", vehicle: "2022 BMW 3 Series", outcome: "Booked", agent: "Alex", time: "41 min ago" },
-  { id: "4", customer: "Linda P.", vehicle: "2020 Toyota Camry", outcome: "No Answer", agent: "Jordan", time: "1h ago" },
-];
-
-const outcomeColor: Record<string, string> = {
-  Booked: "var(--success)",
-  Callback: "var(--warning)",
-  "No Answer": "var(--text-muted)",
-};
 
 export default function OverviewPage() {
+  const { sessions, loading } = useSessions(5000);
+
+  // Derived stats
+  const ended = sessions.filter((s: CallSession) => s.state === "ended");
+  const booked = sessions.filter((s: CallSession) => s.appointment_id);
+  const avgDur = ended.length > 0
+    ? ended.reduce((sum: number, s: CallSession) => sum + (s.duration_seconds ?? 0), 0) / ended.length
+    : 0;
+
+  // Filter for calls today (UTC based check)
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayCalls = sessions.filter((s: CallSession) => s.created_at?.startsWith(todayStr));
+
+  const stats = [
+    { label: "Active Agents", value: "1", delta: "Sofia is live", icon: Bot, color: "#6366f1" },
+    { label: "Calls Today", value: todayCalls.length.toString(), delta: `${sessions.length} total records`, icon: Phone, color: "#10b981" },
+    { label: "Appointments Booked", value: booked.length.toString(), delta: `${ended.length > 0 ? Math.round((booked.length / ended.length) * 100) : 0}% conv. rate`, icon: Users, color: "#f59e0b" },
+    { label: "Avg. Call Duration", value: formatDuration(avgDur), delta: "Sofia persona active", icon: TrendingUp, color: "#8b5cf6" },
+  ];
+
+  const recentCalls = sessions.slice(0, 5);
+
   return (
     <div style={{ display: "flex", height: "100vh", background: "var(--bg-base)", overflow: "hidden" }}>
       <Sidebar />
@@ -73,19 +78,22 @@ export default function OverviewPage() {
           </div>
 
           {/* Two column layout */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 14 }}>
             {/* Recent Calls */}
             <div className="card" style={{ padding: 0, overflow: "hidden" }}>
               <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>Recent Calls</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>Recent Activity</span>
+                  {loading && <span className="spin" style={{ fontSize: 10, color: 'var(--text-muted)' }}>Updating...</span>}
+                </div>
                 <Link href="/calls" style={{ fontSize: 11, color: "var(--accent-hover)", textDecoration: "none", display: "flex", alignItems: "center", gap: 3 }}>
-                  View all <ArrowRight size={11} />
+                  View all logs <ArrowRight size={11} />
                 </Link>
               </div>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                    {["Customer", "Vehicle", "Agent", "Outcome", "Time"].map(h => (
+                    {["Customer", "Service", "Outcome", "Time"].map(h => (
                       <th key={h} style={{ padding: "9px 18px", textAlign: "left", fontSize: 10, fontWeight: 600, color: "var(--text-muted)", letterSpacing: "0.07em", textTransform: "uppercase" }}>
                         {h}
                       </th>
@@ -93,35 +101,67 @@ export default function OverviewPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentCalls.map((call, i) => (
-                    <tr
-                      key={call.id}
-                      style={{
-                        borderBottom: i < recentCalls.length - 1 ? "1px solid var(--border)" : "none",
-                        transition: "background 0.1s",
-                      }}
-                    >
-                      <td style={{ padding: "11px 18px", fontSize: 12, fontWeight: 500, color: "var(--text-primary)" }}>{call.customer}</td>
-                      <td style={{ padding: "11px 18px", fontSize: 12, color: "var(--text-secondary)" }}>{call.vehicle}</td>
-                      <td style={{ padding: "11px 18px", fontSize: 12, color: "var(--text-secondary)" }}>{call.agent}</td>
-                      <td style={{ padding: "11px 18px" }}>
-                        <span
+                  {recentCalls.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                        No recent activity recorded yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    recentCalls.map((call, i) => {
+                      const outcome = outcomeFromSession(call);
+                      return (
+                        <tr
+                          key={call.call_id}
                           style={{
-                            fontSize: 11,
-                            fontWeight: 600,
-                            color: outcomeColor[call.outcome],
-                            background: `${outcomeColor[call.outcome]}18`,
-                            padding: "2px 8px",
-                            borderRadius: 999,
-                            border: `1px solid ${outcomeColor[call.outcome]}30`,
+                            borderBottom: i < recentCalls.length - 1 ? "1px solid var(--border)" : "none",
+                            transition: "background 0.1s",
                           }}
                         >
-                          {call.outcome}
-                        </span>
-                      </td>
-                      <td style={{ padding: "11px 18px", fontSize: 11, color: "var(--text-muted)" }}>{call.time}</td>
-                    </tr>
-                  ))}
+                          <td style={{ padding: "11px 18px", fontSize: 12, fontWeight: 500, color: "var(--text-primary)" }}>
+                            {call.customer_name ?? call.caller_number ?? "Unknown"}
+                          </td>
+                          <td style={{ padding: "11px 18px", fontSize: 12, color: "var(--text-secondary)" }}>
+                            {call.service_type ?? "General Inquiry"}
+                          </td>
+                          <td style={{ padding: "11px 18px" }}>
+                            <span
+                              style={{
+                                fontSize: 11,
+                                fontWeight: 600,
+                                color: outcome.color,
+                                background: outcome.bg,
+                                padding: "2px 8px",
+                                borderRadius: 999,
+                                border: `1px solid ${outcome.color}30`,
+                              }}
+                            >
+                              {outcome.label}
+                            </span>
+                          </td>
+                          <td style={{ padding: "11px 18px", fontSize: 11, color: "var(--text-muted)", whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                              {call.isDemo && (
+                                <span style={{
+                                  fontSize: 8,
+                                  fontWeight: 700,
+                                  letterSpacing: "0.06em",
+                                  color: "var(--text-muted)",
+                                  background: "var(--bg-hover)",
+                                  border: "1px solid var(--border)",
+                                  borderRadius: 4,
+                                  padding: "1px 4px",
+                                }}>
+                                  DEMO
+                                </span>
+                              )}
+                              {formatTime(call.created_at)}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
@@ -149,9 +189,7 @@ export default function OverviewPage() {
               <div className="card" style={{ padding: 18 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Agent Status</div>
                 {[
-                  { name: "Alex", role: "Service Scheduling", live: true },
-                  { name: "Jordan", role: "Inbound Inquiries", live: true },
-                  { name: "Riley", role: "Lead Follow-up", live: false },
+                  { name: "Sofia", role: "Automated Service Booking", live: true },
                 ].map(agent => (
                   <div key={agent.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
