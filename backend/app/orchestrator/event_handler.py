@@ -75,26 +75,26 @@ async def _on_transcript(session: CallSession, message: VapiMessage) -> dict:
     if message.transcriptType == "partial":
         return {}
 
-    if message.role and message.transcript:
+    role_str = message.role  # Now a plain str ("user" | "assistant")
+    if role_str and message.transcript:
         session.transcript.append({
-            "role": message.role.value,
+            "role": role_str,
             "text": message.transcript,
         })
 
     # --- Naive state inference from transcript content (demo-grade) ---
-    # In production: use intent classification or structured extraction.
     text_lower = (message.transcript or "").lower()
 
-    if session.state == CallState.GREETING and message.role and message.role.value == "user":
+    if session.state == CallState.GREETING and role_str == "user":
         session.state = CallState.IDENTIFYING
         logger.info(f"[{session.call_id}] → IDENTIFYING")
 
-    elif session.state == CallState.IDENTIFYING:
-        # Try to extract VIN last 4 from user speech (simple pattern)
+    elif session.state == CallState.IDENTIFYING and role_str == "user":
         import re
-        vin_match = re.search(r"\b(\d{4})\b", text_lower)
+        # Match "4872", "4 8 7 2", "four eight seven two" (digit-only for now)
+        vin_match = re.search(r"\b(\d[\s\-]?\d[\s\-]?\d[\s\-]?\d)\b", text_lower)
         if vin_match:
-            session.vin_last4 = vin_match.group(1)
+            session.vin_last4 = re.sub(r"\s+", "", vin_match.group(1))
             session.state = CallState.LOOKING_UP
             logger.info(f"[{session.call_id}] → LOOKING_UP (VIN: {session.vin_last4})")
 

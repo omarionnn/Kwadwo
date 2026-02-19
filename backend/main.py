@@ -134,12 +134,28 @@ async def setup_vapi(req: SetupRequest):
 # ---------------------------------------------------------------------------
 
 @app.post("/vapi/webhook", tags=["Vapi"])
-async def vapi_webhook(message: VapiMessage):
+async def vapi_webhook(payload: dict):
     """
     Receives all Vapi server messages for the call lifecycle.
+
+    Vapi wraps every event in a top-level 'message' key:
+      {"message": {"type": "...", "call": {...}, ...}}
+
+    We unwrap it here before parsing into VapiMessage.
     Returns either {} or a ToolResult JSON for function-calls.
     """
-    logger.info(f"Vapi event: type={message.type} call_id={message.call.id}")
+    # Unwrap the Vapi envelope
+    inner = payload.get("message", payload)
+
+    logger.info(f"Vapi webhook: type={inner.get('type')} call_id={inner.get('call', {}).get('id')}")
+    logger.debug(f"Raw payload: {payload}")
+
+    try:
+        message = VapiMessage.model_validate(inner)
+    except Exception as e:
+        logger.warning(f"Failed to parse Vapi message: {e}\nPayload: {inner}")
+        return {}  # Don't crash — Vapi expects 200 back regardless
+
     response = await handle_vapi_event(message)
     return response
 

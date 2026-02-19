@@ -35,6 +35,9 @@ class VapiCaller(BaseModel):
 
 
 class VapiCall(BaseModel):
+    """Represents the 'call' object in Vapi webhook payloads."""
+    model_config = {"extra": "allow"}
+
     id: str
     orgId: Optional[str] = None
     assistantId: Optional[str] = None
@@ -46,6 +49,9 @@ class VapiCall(BaseModel):
     endedReason: Optional[str] = None
     cost: Optional[float] = None
     duration: Optional[float] = None
+    # Real Vapi includes these extra fields:
+    status: Optional[str] = None
+    type: Optional[str] = None
 
 
 class VapiTranscriptMessage(BaseModel):
@@ -59,19 +65,21 @@ class VapiFunctionCallParameters(BaseModel):
 
 
 class VapiMessage(BaseModel):
-    """Top-level Vapi server message."""
+    """Top-level Vapi server message — after unwrapping the outer 'message' envelope."""
+    model_config = {"extra": "allow"}  # Absorb any unknown fields from Vapi
+
     type: VapiEventType
     call: VapiCall
 
-    # Only present for transcript events
-    role: Optional[TranscriptRole] = None
+    # transcript events
+    role: Optional[str] = None          # "user" | "assistant"
     transcript: Optional[str] = None
     transcriptType: Optional[str] = None  # "partial" | "final"
 
-    # Only present for function-call events
+    # function-call events
     functionCall: Optional[dict[str, Any]] = None
 
-    # Only present for status-update
+    # status-update events
     status: Optional[str] = None
 
 

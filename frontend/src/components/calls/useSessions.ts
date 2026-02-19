@@ -23,6 +23,8 @@ export interface CallSession {
     ended_reason: string | null;
     cost_usd: number | null;
     duration_seconds: number | null;
+    /** true for seeded demo rows, undefined/false for real backend sessions */
+    isDemo?: boolean;
 }
 
 // ── Realistic seed data shown before backend sessions exist ──────────────────
@@ -51,6 +53,7 @@ const SEED: CallSession[] = [
         ended_reason: "customer-ended-call",
         cost_usd: 0.0038,
         duration_seconds: 127,
+        isDemo: true,
     },
     {
         call_id: "demo-002",
@@ -75,6 +78,7 @@ const SEED: CallSession[] = [
         ended_reason: "customer-ended-call",
         cost_usd: 0.0029,
         duration_seconds: 163,
+        isDemo: true,
     },
     {
         call_id: "demo-003",
@@ -101,6 +105,7 @@ const SEED: CallSession[] = [
         ended_reason: "customer-ended-call",
         cost_usd: 0.0044,
         duration_seconds: 134,
+        isDemo: true,
     },
     {
         call_id: "demo-004",
@@ -120,15 +125,18 @@ const SEED: CallSession[] = [
         ended_reason: "no-answer",
         cost_usd: 0.0004,
         duration_seconds: 9,
+        isDemo: true,
     },
 ];
 
 function mergeUnique(seeds: CallSession[], live: CallSession[]): CallSession[] {
-    const ids = new Set(live.map(s => s.call_id));
-    const deduped = seeds.filter(s => !ids.has(s.call_id));
-    return [...live, ...deduped].sort((a, b) =>
-        (b.created_at ?? "").localeCompare(a.created_at ?? "")
-    );
+    const liveIds = new Set(live.map(s => s.call_id));
+    // Remove seed entries that have a real counterpart
+    const deduped = seeds.filter(s => !liveIds.has(s.call_id));
+    // Real sessions always float above demo seeds, then sort by recency within each group
+    const realSorted = live.sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
+    const demoSorted = deduped.sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
+    return [...realSorted, ...demoSorted];
 }
 
 export function useSessions(pollIntervalMs = 5000) {

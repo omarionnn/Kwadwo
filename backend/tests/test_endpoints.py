@@ -142,13 +142,20 @@ class TestVapiWebhook:
         assert "result" in data
         assert data["result"]["found"] is True
 
-    def test_webhook_invalid_event_type_returns_422(self, client):
+    def test_webhook_unknown_event_type_returns_200(self, client):
+        """
+        The webhook must always return 200 to Vapi, even for unrecognised event types.
+        Returning a 4xx causes Vapi to retry the webhook indefinitely.
+        Our handler logs a warning and returns {} gracefully.
+        """
         payload = {
-            "type": "not-a-real-event",
-            "call": {"id": "wh-bad"}
+            "message": {
+                "type": "not-a-real-event",
+                "call": {"id": "wh-bad"}
+            }
         }
         resp = client.post("/vapi/webhook", json=payload)
-        assert resp.status_code == 422
+        assert resp.status_code == 200
 
     def test_call_end_sets_session_to_ended(self, client):
         import asyncio

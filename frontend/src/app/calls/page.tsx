@@ -222,9 +222,26 @@ export default function CallLogsPage() {
                                                                 />
                                                             )}
                                                         </div>
-                                                        <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)" }}>
-                                                            {s.customer_name ?? "Unknown"}
-                                                        </span>
+                                                        <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                                                            <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)" }}>
+                                                                {s.customer_name ?? "Unknown"}
+                                                            </span>
+                                                            {s.isDemo && (
+                                                                <span style={{
+                                                                    fontSize: 9,
+                                                                    fontWeight: 700,
+                                                                    letterSpacing: "0.06em",
+                                                                    color: "var(--text-muted)",
+                                                                    background: "var(--bg-hover)",
+                                                                    border: "1px solid var(--border)",
+                                                                    borderRadius: 4,
+                                                                    padding: "1px 5px",
+                                                                    width: "fit-content",
+                                                                }}>
+                                                                    DEMO
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </td>
 
