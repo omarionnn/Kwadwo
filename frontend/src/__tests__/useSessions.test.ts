@@ -49,9 +49,14 @@ describe("outcomeFromSession", () => {
         expect(outcomeFromSession(s).label).toBe("Live");
     });
 
-    test("returns Live for identifying state", () => {
+    test("returns Live for identifying state (mid-call)", () => {
         const s = makeSession({ state: "identifying", appointment_id: null });
         expect(outcomeFromSession(s).label).toBe("Live");
+    });
+
+    test("returns No Answer for 'initiated' state (call arrived but backend missed call-start)", () => {
+        const s = makeSession({ state: "initiated", appointment_id: null });
+        expect(outcomeFromSession(s).label).toBe("No Answer");
     });
 
     test("returns No Answer when ended_reason is no-answer", () => {

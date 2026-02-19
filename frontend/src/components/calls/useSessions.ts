@@ -172,9 +172,9 @@ export function useSessions(pollIntervalMs = 5000) {
 
 export function outcomeFromSession(s: CallSession): { label: string; color: string; bg: string } {
     if (s.appointment_id) return { label: "Booked", color: "#10b981", bg: "rgba(16,185,129,0.12)" };
-    if (s.ended_reason === "no-answer") return { label: "No Answer", color: "#4a6080", bg: "rgba(74,96,128,0.12)" };
-    if (!s.appointment_id && s.state === "ended") return { label: "Callback", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" };
-    if (s.state !== "ended") return { label: "Live", color: "#6366f1", bg: "rgba(99,102,241,0.12)" };
+    if (s.ended_reason === "no-answer" || s.state === "initiated") return { label: "No Answer", color: "#4a6080", bg: "rgba(74,96,128,0.12)" };
+    if (s.state === "ended" && !s.appointment_id) return { label: "Callback", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" };
+    if (s.state !== "ended" && s.state !== "initiated") return { label: "Live", color: "#6366f1", bg: "rgba(99,102,241,0.12)" };
     return { label: "Unknown", color: "#4a6080", bg: "rgba(74,96,128,0.12)" };
 }
 

@@ -171,7 +171,11 @@ export default function CallLogsPage() {
                                 ) : (
                                     filtered.map((s, i) => {
                                         const outcome = outcomeFromSession(s);
-                                        const isLive = s.state !== "ended";
+                                        // Live = actively in a call. Exclude:
+                                        //   'ended'   — call finished properly
+                                        //   'initiated' — backend missed call-start, call already over
+                                        // Also use ended_at as a definitive fallback.
+                                        const isLive = s.state !== "ended" && s.state !== "initiated" && !s.ended_at;
                                         return (
                                             <tr
                                                 key={s.call_id}

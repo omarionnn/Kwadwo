@@ -65,6 +65,8 @@ async def handle_vapi_event(message: VapiMessage) -> dict[str, Any]:
 async def _on_call_started(session: CallSession) -> dict:
     logger.info(f"[{session.call_id}] Call started — state: {session.state}")
     session.state = CallState.GREETING
+    if not session.created_at:
+        session.created_at = datetime.now(timezone.utc).isoformat()
     await save_session(session)
     return {}  # Vapi handles the greeting via the assistant's firstMessage
 
@@ -152,9 +154,37 @@ async def _on_call_ended(session: CallSession, message: VapiMessage) -> dict:
     session.state = CallState.ENDED
     session.ended_at = datetime.now(timezone.utc).isoformat()
     session.ended_reason = message.call.endedReason
-    session.cost_usd = message.call.cost
+
+    # Duration — Vapi sends this on the call object directly
     session.duration_seconds = message.call.duration
 
-    # Persist final session (keep for analytics; a background job would archive to DB)
+    # Cost — try call.cost first, then call.costBreakdown.total (different Vapi versions)
+    raw_call = message.model_extra.get("call", {}) if hasattr(message, "model_extra") else {}
+    if message.call.cost is not None:
+        session.cost_usd = message.call.cost
+    elif isinstance(raw_call, dict):
+        breakdown = raw_call.get("costBreakdown", {})
+        session.cost_usd = breakdown.get("total") if breakdown else None
+
+    # ── Extract full transcript from call.messages ────────────────────────────
+    # Vapi includes the complete conversation in call.messages on call-end.
+    # This is more reliable than relying on interim transcript events.
+    call_dict = message.call.model_dump(exclude_none=True)
+    messages_raw = call_dict.get("messages", [])
+
+    if messages_raw and not session.transcript:
+        # Only replace if we have no transcript yet (don't overwrite partial transcripts)
+        extracted = []
+        for m in messages_raw:
+            role = m.get("role", "")
+            # Vapi roles: "user", "assistant", "tool" — skip tool/system
+            if role in ("user", "assistant"):
+                text = m.get("message") or m.get("content") or m.get("text") or ""
+                if text.strip():
+                    extracted.append({"role": role, "text": text.strip()})
+        if extracted:
+            session.transcript = extracted
+            logger.info(f"[{session.call_id}] Extracted {len(extracted)} transcript lines from call.messages")
+
     await save_session(session)
     return {}
