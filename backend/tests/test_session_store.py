@@ -18,13 +18,8 @@ from app.models.call_models import CallSession, CallState
 def clear_store():
     """Wipe store before every test to ensure isolation."""
     _STORE.clear()
-    from app.orchestrator.session_store import _SESSIONS_FILE
-    if _SESSIONS_FILE.exists():
-        _SESSIONS_FILE.unlink()
     yield
     _STORE.clear()
-    if _SESSIONS_FILE.exists():
-        _SESSIONS_FILE.unlink()
 
 
 class TestSessionStore:

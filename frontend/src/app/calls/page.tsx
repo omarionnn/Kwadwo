@@ -20,6 +20,7 @@ function matchesFilter(s: CallSession, search: string, outcome: string): boolean
         !q ||
         (s.customer_name ?? "").toLowerCase().includes(q) ||
         (s.caller_number ?? "").includes(q) ||
+        (s.service_type ?? "").toLowerCase().includes(q) ||
         (s.appointment_id ?? "").toLowerCase().includes(q) ||
         (s.call_id ?? "").toLowerCase().includes(q);
 
@@ -142,7 +143,7 @@ export default function CallLogsPage() {
                         <table style={{ width: "100%", borderCollapse: "collapse" }}>
                             <thead>
                                 <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-surface)" }}>
-                                    {["Customer", "Number", "Vehicle", "Duration", "Outcome", "Appointment", "Time", ""].map(h => (
+                                    {["Customer", "Number", "Service", "Duration", "Outcome", "Appointment", "Time", ""].map(h => (
                                         <th
                                             key={h}
                                             style={{
@@ -254,9 +255,9 @@ export default function CallLogsPage() {
                                                     {s.caller_number ?? "—"}
                                                 </td>
 
-                                                {/* Vehicle */}
+                                                {/* Service */}
                                                 <td style={{ padding: "12px 16px", fontSize: 12, color: "var(--text-secondary)" }}>
-                                                    {s.vin_last4 ? `VIN …${s.vin_last4}` : "—"}
+                                                    {s.service_type ?? "—"}
                                                 </td>
 
                                                 {/* Duration */}

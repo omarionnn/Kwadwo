@@ -19,31 +19,37 @@ from app.models.call_models import CallSession, CallState
 
 logger = logging.getLogger("saafi.session_store")
 
-# ── Persistence ───────────────────────────────────────────────────────────────
-# Store sessions.json next to the backend/ root, in a data/ folder that is
-# git-ignored so call data never leaks into source control.
-_DATA_DIR  = Path(__file__).parents[3] / "data"   # backend/../data  → project_root/data
-_SESSIONS_FILE = _DATA_DIR / "sessions.json"
+def get_data_dir() -> Path:
+    """Returns the directory where session data is stored."""
+    default_dir = Path(__file__).parents[3] / "data"
+    return Path(os.getenv("SAAFI_DATA_DIR", str(default_dir)))
+
+
+def get_sessions_file() -> Path:
+    """Returns the path to the sessions.json file."""
+    return get_data_dir() / "sessions.json"
+
 
 # In-memory cache {call_id: CallSession}
 _STORE: dict[str, str] = {}
 
 
 def _ensure_data_dir() -> None:
-    _DATA_DIR.mkdir(parents=True, exist_ok=True)
+    get_data_dir().mkdir(parents=True, exist_ok=True)
 
 
 def _load_from_disk() -> None:
     """Load all sessions from disk into the in-memory cache on startup."""
     _ensure_data_dir()
-    if not _SESSIONS_FILE.exists():
+    sessions_file = get_sessions_file()
+    if not sessions_file.exists():
         return
     try:
-        with open(_SESSIONS_FILE, "r") as f:
+        with open(sessions_file, "r") as f:
             data: dict = json.load(f)
         for call_id, raw in data.items():
             _STORE[call_id] = raw if isinstance(raw, str) else json.dumps(raw)
-        logger.info(f"Loaded {len(_STORE)} sessions from disk ({_SESSIONS_FILE})")
+        logger.info(f"Loaded {len(_STORE)} sessions from disk ({sessions_file})")
     except Exception as e:
         logger.warning(f"Could not load sessions from disk: {e}")
 
@@ -51,8 +57,9 @@ def _load_from_disk() -> None:
 def _flush_to_disk() -> None:
     """Write the current in-memory store to disk (called from a thread executor)."""
     _ensure_data_dir()
+    sessions_file = get_sessions_file()
     try:
-        with open(_SESSIONS_FILE, "w") as f:
+        with open(sessions_file, "w") as f:
             json.dump(_STORE, f)
     except Exception as e:
         logger.error(f"Failed to flush sessions to disk: {e}")
