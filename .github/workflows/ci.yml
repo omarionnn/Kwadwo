@@ -46,13 +46,28 @@ jobs:
       with:
         python-version: '3.10'
         cache: 'pip'
+        cache-dependency-path: backend/requirements.txt
 
-    - name: Install dependencies
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update -q
+        sudo apt-get install -y -q libpq-dev
+
+    - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        pip install -r requirements.txt
+        pip install pytest pytest-asyncio
 
     - name: Test with pytest
-      run: |
-        pip install pytest pytest-asyncio
-        pytest
+      env:
+        PYTHONPATH: .
+        # Provide dummy values so imports don't fail at collection time
+        VAPI_API_KEY: test_key
+        VAPI_PHONE_NUMBER_ID: test_phone_id
+        VAPI_ASSISTANT_ID: test_assistant_id
+        PUBLIC_WEBHOOK_URL: http://localhost:8000
+        # Empty Redis vars — conftest.py disables Redis for tests
+        UPSTASH_REDIS_REST_URL: ""
+        UPSTASH_REDIS_REST_TOKEN: ""
+      run: pytest
