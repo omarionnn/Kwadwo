@@ -1,45 +1,32 @@
 "use client";
 
-import { useState } from "react";
-import { Bot, ChevronDown } from "lucide-react";
+import { Bot } from "lucide-react";
+import type { AgentConfig } from "@/app/agents/page";
+
+/* ── Real Vapi-compatible options ────────────────────────────────────── */
 
 const VOICES = [
-    { id: "rachel", name: "Rachel", accent: "American", gender: "Female", sample: "Warm & professional" },
-    { id: "josh", name: "Josh", accent: "American", gender: "Male", sample: "Confident & clear" },
-    { id: "bella", name: "Bella", accent: "British", gender: "Female", sample: "Polished & friendly" },
-    { id: "adam", name: "Adam", accent: "American", gender: "Male", sample: "Authoritative & calm" },
+    { provider: "openai", voiceId: "nova", label: "Nova", accent: "American", gender: "Female", desc: "Warm & professional" },
+    { provider: "openai", voiceId: "shimmer", label: "Shimmer", accent: "American", gender: "Female", desc: "Bright & expressive" },
+    { provider: "openai", voiceId: "alloy", label: "Alloy", accent: "American", gender: "Neutral", desc: "Clear & balanced" },
+    { provider: "openai", voiceId: "echo", label: "Echo", accent: "American", gender: "Male", desc: "Smooth & calm" },
+    { provider: "openai", voiceId: "onyx", label: "Onyx", accent: "American", gender: "Male", desc: "Deep & authoritative" },
+    { provider: "openai", voiceId: "fable", label: "Fable", accent: "British", gender: "Male", desc: "Storytelling quality" },
 ];
 
 const MODELS = [
-    { id: "gpt4o", label: "GPT-4o Realtime", badge: "Recommended", latency: "~200ms" },
-    { id: "claude35", label: "Claude 3.5 Sonnet", badge: "High Quality", latency: "~320ms" },
-    { id: "gpt4turbo", label: "GPT-4 Turbo", badge: "Stable", latency: "~450ms" },
+    { id: "gpt-4o", label: "GPT-4o", badge: "Recommended", latency: "~200ms" },
+    { id: "gpt-4o-mini", label: "GPT-4o Mini", badge: "Fast", latency: "~120ms" },
+    { id: "gpt-4-turbo", label: "GPT-4 Turbo", badge: "Stable", latency: "~450ms" },
 ];
 
 interface Props {
-    agentName: string;
-    setAgentName: (v: string) => void;
+    config: AgentConfig;
+    onUpdateField: <K extends keyof AgentConfig>(key: K, value: AgentConfig[K]) => void;
+    onUpdateVoice: (provider: string, voiceId: string) => void;
 }
 
-export default function AgentConfigPanel({ agentName, setAgentName }: Props) {
-    const [selectedVoice, setSelectedVoice] = useState("rachel");
-    const [selectedModel, setSelectedModel] = useState("gpt4o");
-    const [temperature, setTemperature] = useState(0.7);
-    const [interruptions, setInterruptions] = useState(true);
-    const [endSilence, setEndSilence] = useState(3);
-    const [firstMessage, setFirstMessage] = useState(
-        "Hi! You've reached {{dealership_name}}. I'm {{agent_name}}, your AI assistant. How can I help you today?"
-    );
-    const [systemPrompt, setSystemPrompt] = useState(
-        `You are {{agent_name}}, a professional service scheduling AI for {{dealership_name}}. Your goal is to:
-1. Greet the customer warmly
-2. Identify their vehicle and service need
-3. Check availability in the scheduling system
-4. Book the appointment and confirm via SMS
-
-Always confirm the customer's VIN (last 4 digits) before looking up their vehicle. Never make up availability — use the get_availability tool.`
-    );
-
+export default function AgentConfigPanel({ config, onUpdateField, onUpdateVoice }: Props) {
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 20, overflowY: "auto", paddingRight: 4 }}>
 
@@ -54,18 +41,13 @@ Always confirm the customer's VIN (last 4 digits) before looking up their vehicl
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                     <div>
-                        <label style={{ display: "block", marginBottom: 5 }}>Agent Name</label>
+                        <label style={{ display: "block", marginBottom: 5 }}>Assistant Name</label>
                         <input
                             className="input"
-                            value={agentName}
-                            onChange={e => setAgentName(e.target.value)}
-                            placeholder="e.g. Alex, Jordan, Saafi..."
+                            value={config.name}
+                            onChange={e => onUpdateField("name", e.target.value)}
+                            placeholder="e.g. Sofia — Westside Auto"
                         />
-                    </div>
-
-                    <div>
-                        <label style={{ display: "block", marginBottom: 5 }}>Dealership Variable</label>
-                        <input className="input" defaultValue="Westside Auto Group" placeholder="Dealership name..." />
                     </div>
                 </div>
             </section>
@@ -74,31 +56,34 @@ Always confirm the customer's VIN (last 4 digits) before looking up their vehicl
             <section className="card" style={{ padding: 18 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>Voice</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                    {VOICES.map(v => (
-                        <div
-                            key={v.id}
-                            onClick={() => setSelectedVoice(v.id)}
-                            className="card-hover"
-                            style={{
-                                padding: "10px 12px",
-                                borderRadius: 8,
-                                border: `1px solid ${selectedVoice === v.id ? "var(--accent)" : "var(--border)"}`,
-                                background: selectedVoice === v.id ? "var(--accent-glow)" : "var(--bg-surface)",
-                                cursor: "pointer",
-                                transition: "all 0.15s",
-                            }}
-                        >
-                            <div style={{ fontSize: 12, fontWeight: 600, color: selectedVoice === v.id ? "var(--accent-hover)" : "var(--text-primary)" }}>
-                                {v.name}
+                    {VOICES.map(v => {
+                        const selected = config.voice.voiceId === v.voiceId;
+                        return (
+                            <div
+                                key={v.voiceId}
+                                onClick={() => onUpdateVoice(v.provider, v.voiceId)}
+                                className="card-hover"
+                                style={{
+                                    padding: "10px 12px",
+                                    borderRadius: 8,
+                                    border: `1px solid ${selected ? "var(--accent)" : "var(--border)"}`,
+                                    background: selected ? "var(--accent-glow)" : "var(--bg-surface)",
+                                    cursor: "pointer",
+                                    transition: "all 0.15s",
+                                }}
+                            >
+                                <div style={{ fontSize: 12, fontWeight: 600, color: selected ? "var(--accent-hover)" : "var(--text-primary)" }}>
+                                    {v.label}
+                                </div>
+                                <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>
+                                    {v.accent} · {v.gender}
+                                </div>
+                                <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 3, fontStyle: "italic" }}>
+                                    {v.desc}
+                                </div>
                             </div>
-                            <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>
-                                {v.accent} · {v.gender}
-                            </div>
-                            <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 3, fontStyle: "italic" }}>
-                                {v.sample}
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </section>
 
@@ -106,87 +91,59 @@ Always confirm the customer's VIN (last 4 digits) before looking up their vehicl
             <section className="card" style={{ padding: 18 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>LLM Model</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {MODELS.map(m => (
-                        <div
-                            key={m.id}
-                            onClick={() => setSelectedModel(m.id)}
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                                padding: "10px 12px",
-                                borderRadius: 8,
-                                border: `1px solid ${selectedModel === m.id ? "var(--accent)" : "var(--border)"}`,
-                                background: selectedModel === m.id ? "var(--accent-glow)" : "var(--bg-surface)",
-                                cursor: "pointer",
-                                transition: "all 0.15s",
-                            }}
-                        >
-                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <div
-                                    style={{
-                                        width: 8, height: 8, borderRadius: "50%",
-                                        border: `2px solid ${selectedModel === m.id ? "var(--accent)" : "var(--border-light)"}`,
-                                        background: selectedModel === m.id ? "var(--accent)" : "transparent",
-                                        transition: "all 0.15s",
-                                    }}
-                                />
-                                <span style={{ fontSize: 12, color: selectedModel === m.id ? "var(--text-primary)" : "var(--text-secondary)", fontWeight: selectedModel === m.id ? 500 : 400 }}>
-                                    {m.label}
-                                </span>
+                    {MODELS.map(m => {
+                        const selected = config.model === m.id;
+                        return (
+                            <div
+                                key={m.id}
+                                onClick={() => onUpdateField("model", m.id)}
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    padding: "10px 12px",
+                                    borderRadius: 8,
+                                    border: `1px solid ${selected ? "var(--accent)" : "var(--border)"}`,
+                                    background: selected ? "var(--accent-glow)" : "var(--bg-surface)",
+                                    cursor: "pointer",
+                                    transition: "all 0.15s",
+                                }}
+                            >
+                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                    <div
+                                        style={{
+                                            width: 8, height: 8, borderRadius: "50%",
+                                            border: `2px solid ${selected ? "var(--accent)" : "var(--border-light)"}`,
+                                            background: selected ? "var(--accent)" : "transparent",
+                                            transition: "all 0.15s",
+                                        }}
+                                    />
+                                    <span style={{ fontSize: 12, color: selected ? "var(--text-primary)" : "var(--text-secondary)", fontWeight: selected ? 500 : 400 }}>
+                                        {m.label}
+                                    </span>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                    <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{m.latency}</span>
+                                    <span className="badge badge-accent" style={{ fontSize: 10, padding: "2px 6px" }}>{m.badge}</span>
+                                </div>
                             </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{m.latency}</span>
-                                <span className="badge badge-accent" style={{ fontSize: 10, padding: "2px 6px" }}>{m.badge}</span>
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
 
                 <div style={{ marginTop: 16 }}>
                     <label style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                         Temperature
-                        <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{temperature}</span>
+                        <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{config.temperature}</span>
                     </label>
                     <input
                         type="range" min={0} max={1} step={0.05}
-                        value={temperature}
-                        onChange={e => setTemperature(parseFloat(e.target.value))}
+                        value={config.temperature}
+                        onChange={e => onUpdateField("temperature", parseFloat(e.target.value))}
                     />
                     <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
                         <span style={{ fontSize: 10, color: "var(--text-muted)" }}>Consistent</span>
                         <span style={{ fontSize: 10, color: "var(--text-muted)" }}>Creative</span>
-                    </div>
-                </div>
-            </section>
-
-            {/* Behavior */}
-            <section className="card" style={{ padding: 18 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>Behavior</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <div>
-                            <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text-primary)" }}>Allow Interruptions</div>
-                            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>User can interrupt agent mid-sentence</div>
-                        </div>
-                        <label className="toggle">
-                            <input type="checkbox" checked={interruptions} onChange={e => setInterruptions(e.target.checked)} />
-                            <span className="toggle-slider" />
-                        </label>
-                    </div>
-
-                    <hr className="divider" style={{ margin: "4px 0" }} />
-
-                    <div>
-                        <label style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                            End-of-speech Silence
-                            <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{endSilence}s</span>
-                        </label>
-                        <input
-                            type="range" min={1} max={6} step={0.5}
-                            value={endSilence}
-                            onChange={e => setEndSilence(parseFloat(e.target.value))}
-                        />
                     </div>
                 </div>
             </section>
@@ -200,23 +157,20 @@ Always confirm the customer's VIN (last 4 digits) before looking up their vehicl
                         <label style={{ display: "block", marginBottom: 5 }}>First Message</label>
                         <textarea
                             className="input"
-                            value={firstMessage}
-                            onChange={e => setFirstMessage(e.target.value)}
+                            value={config.firstMessage}
+                            onChange={e => onUpdateField("firstMessage", e.target.value)}
                             rows={2}
                             style={{ resize: "vertical", lineHeight: 1.5 }}
                         />
-                        <p style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 4 }}>
-                            Supports template variables like <code style={{ color: "var(--accent-hover)" }}>{"{{agent_name}}"}</code>
-                        </p>
                     </div>
 
                     <div>
                         <label style={{ display: "block", marginBottom: 5 }}>System Prompt</label>
                         <textarea
                             className="input"
-                            value={systemPrompt}
-                            onChange={e => setSystemPrompt(e.target.value)}
-                            rows={7}
+                            value={config.systemPrompt}
+                            onChange={e => onUpdateField("systemPrompt", e.target.value)}
+                            rows={12}
                             style={{ resize: "vertical", lineHeight: 1.6, fontFamily: "monospace", fontSize: 12 }}
                         />
                     </div>

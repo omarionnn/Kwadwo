@@ -10,6 +10,7 @@ from app.orchestrator.event_handler import handle_vapi_event
 from app.orchestrator.session_store import get_all_sessions, get_session
 from app.models.call_models import VapiMessage
 from app.vapi.provisioner import create_assistant, assign_phone_number, get_phone_number_info
+from app.api.agent_routes import router as agent_router
 import json as _json
 
 load_dotenv()
@@ -87,6 +88,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(agent_router)
 
 
 # ---------------------------------------------------------------------------
