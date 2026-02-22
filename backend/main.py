@@ -7,7 +7,7 @@ import os
 from dotenv import load_dotenv
 
 from app.orchestrator.event_handler import handle_vapi_event
-from app.orchestrator.session_store import get_all_sessions, get_session, _load_from_disk
+from app.orchestrator.session_store import get_all_sessions, get_session
 from app.models.call_models import VapiMessage
 from app.vapi.provisioner import create_assistant, assign_phone_number, get_phone_number_info
 import json as _json
@@ -32,8 +32,7 @@ _last_payload: dict = {}
 async def lifespan(app: FastAPI):
     logger.info("Saafi AI Orchestrator starting up...")
 
-    # ── Load persisted call sessions from disk ────────────────────────────
-    _load_from_disk()
+    # Sessions are fetched live from Upstash Redis — no disk load needed.
 
     api_key  = os.getenv("VAPI_API_KEY", "")
     phone_id = os.getenv("VAPI_PHONE_NUMBER_ID", "")

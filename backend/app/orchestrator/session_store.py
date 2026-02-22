@@ -1,96 +1,130 @@
 """
-Session Store — CallSession state backed by a JSON file on disk.
+Session Store — CallSession state backed by Upstash Redis.
 
-Writes are synchronous-to-disk (via a thread executor) to survive backend
-restarts without adding Redis as a dependency.
+Uses the Upstash REST-based Redis client (upstash-redis), which works
+in any environment including Render without needing a TCP Redis connection.
 
-The in-memory dict is used as a fast read cache so hot paths don't hit disk.
+Keys are prefixed with "session:" so the store is easy to inspect/clear.
+Falls back gracefully to in-memory-only mode if Redis env vars are missing.
 """
 
 from __future__ import annotations
-import asyncio
-import json
 import logging
 import os
-from pathlib import Path
 from typing import Optional
 
 from app.models.call_models import CallSession, CallState
 
 logger = logging.getLogger("saafi.session_store")
 
-def get_data_dir() -> Path:
-    """Returns the directory where session data is stored."""
-    default_dir = Path(__file__).parents[3] / "data"
-    return Path(os.getenv("SAAFI_DATA_DIR", str(default_dir)))
+# ── Redis client (lazy-initialised) ──────────────────────────────────────────
+
+_redis = None
 
 
-def get_sessions_file() -> Path:
-    """Returns the path to the sessions.json file."""
-    return get_data_dir() / "sessions.json"
+def _get_redis():
+    global _redis
+    if _redis is not None:
+        return _redis
+
+    url   = os.getenv("UPSTASH_REDIS_REST_URL")
+    token = os.getenv("UPSTASH_REDIS_REST_TOKEN")
+
+    if not url or not token:
+        logger.warning("UPSTASH_REDIS_REST_URL / TOKEN not set — sessions will be in-memory only.")
+        return None
+
+    try:
+        from upstash_redis.asyncio import Redis
+        _redis = Redis(url=url, token=token)
+        logger.info("Upstash Redis client initialised.")
+    except Exception as e:
+        logger.error(f"Failed to initialise Upstash Redis: {e}")
+        return None
+
+    return _redis
 
 
-# In-memory cache {call_id: CallSession}
+# In-memory fallback {call_id: json_str} (also used by tests to inspect/clear state)
 _STORE: dict[str, str] = {}
 
-
-def _ensure_data_dir() -> None:
-    get_data_dir().mkdir(parents=True, exist_ok=True)
-
-
-def _load_from_disk() -> None:
-    """Load all sessions from disk into the in-memory cache on startup."""
-    _ensure_data_dir()
-    sessions_file = get_sessions_file()
-    if not sessions_file.exists():
-        return
-    try:
-        with open(sessions_file, "r") as f:
-            data: dict = json.load(f)
-        for call_id, raw in data.items():
-            _STORE[call_id] = raw if isinstance(raw, str) else json.dumps(raw)
-        logger.info(f"Loaded {len(_STORE)} sessions from disk ({sessions_file})")
-    except Exception as e:
-        logger.warning(f"Could not load sessions from disk: {e}")
-
-
-def _flush_to_disk() -> None:
-    """Write the current in-memory store to disk (called from a thread executor)."""
-    _ensure_data_dir()
-    sessions_file = get_sessions_file()
-    try:
-        with open(sessions_file, "w") as f:
-            json.dump(_STORE, f)
-    except Exception as e:
-        logger.error(f"Failed to flush sessions to disk: {e}")
-
-
-async def _persist() -> None:
-    """Async wrapper — runs the sync file-write in a thread so we don't block the event loop."""
-    loop = asyncio.get_event_loop()
-    await loop.run_in_executor(None, _flush_to_disk)
+_PREFIX = "session:"
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
 async def get_session(call_id: str) -> Optional[CallSession]:
+    key = f"{_PREFIX}{call_id}"
+    redis = _get_redis()
+
+    if redis:
+        try:
+            raw = await redis.get(key)
+            if raw is None:
+                return None
+            return CallSession.model_validate_json(raw if isinstance(raw, str) else raw.decode())
+        except Exception as e:
+            logger.error(f"Redis get error: {e}")
+
+    # Fallback to memory
     raw = _STORE.get(call_id)
-    if raw is None:
-        return None
-    return CallSession.model_validate_json(raw)
+    return CallSession.model_validate_json(raw) if raw else None
 
 
 async def save_session(session: CallSession) -> None:
-    _STORE[session.call_id] = session.model_dump_json()
-    await _persist()
+    key = f"{_PREFIX}{session.call_id}"
+    data = session.model_dump_json()
+    redis = _get_redis()
+
+    if redis:
+        try:
+            await redis.set(key, data)
+            return
+        except Exception as e:
+            logger.error(f"Redis set error: {e}")
+
+    # Fallback to memory
+    _STORE[session.call_id] = data
 
 
 async def delete_session(call_id: str) -> None:
+    key = f"{_PREFIX}{call_id}"
+    redis = _get_redis()
+
+    if redis:
+        try:
+            await redis.delete(key)
+            return
+        except Exception as e:
+            logger.error(f"Redis delete error: {e}")
+
     _STORE.pop(call_id, None)
-    await _persist()
 
 
 async def get_all_sessions() -> list[CallSession]:
+    redis = _get_redis()
+
+    if redis:
+        try:
+            keys = await redis.keys(f"{_PREFIX}*")
+            if not keys:
+                return []
+            # Fetch all values in one round-trip
+            values = await redis.mget(*keys)
+            sessions = []
+            for raw in values:
+                if raw is None:
+                    continue
+                try:
+                    s = CallSession.model_validate_json(raw if isinstance(raw, str) else raw.decode())
+                    sessions.append(s)
+                except Exception:
+                    pass
+            return sessions
+        except Exception as e:
+            logger.error(f"Redis get_all error: {e}")
+
+    # Fallback to memory
     return [CallSession.model_validate_json(v) for v in _STORE.values()]
 
 

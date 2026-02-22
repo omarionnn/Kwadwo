@@ -3,6 +3,7 @@ Unit tests for the session store.
 """
 
 import pytest
+import app.orchestrator.session_store as _ss
 from app.orchestrator.session_store import (
     get_session,
     save_session,
@@ -15,8 +16,12 @@ from app.models.call_models import CallSession, CallState
 
 
 @pytest.fixture(autouse=True)
-def clear_store():
-    """Wipe store before every test to ensure isolation."""
+def clear_store(monkeypatch):
+    """Wipe store and disable Redis before every test to ensure isolation."""
+    # Disable real Redis so tests only hit the in-memory _STORE
+    monkeypatch.setattr(_ss, "_redis", None)
+    monkeypatch.setenv("UPSTASH_REDIS_REST_URL", "")
+    monkeypatch.setenv("UPSTASH_REDIS_REST_TOKEN", "")
     _STORE.clear()
     yield
     _STORE.clear()
