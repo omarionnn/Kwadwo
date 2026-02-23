@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Sidebar from "@/components/sidebar/Sidebar";
 import Topbar from "@/components/sidebar/Topbar";
 import DemoBanner from "@/components/DemoBanner";
@@ -11,6 +12,13 @@ import type { CallSession } from "@/components/calls/useSessions";
 
 export default function OverviewPage() {
   const { sessions, loading } = useSessions(5000);
+  const [now, setNow] = useState(Date.now());
+
+  // Update time every second for live timers
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   // Derived stats
   const ended = sessions.filter((s: CallSession) => s.state === "ended");
@@ -23,8 +31,32 @@ export default function OverviewPage() {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayCalls = sessions.filter((s: CallSession) => s.created_at?.startsWith(todayStr));
 
+  // Find live call
+  const liveCall = sessions.find((s: CallSession) => s.state !== "ended" && s.state !== "initiated");
+
+  let firstStat;
+  if (liveCall && liveCall.created_at) {
+    const startMs = new Date(liveCall.created_at).getTime();
+    const elapsedSec = Math.floor((now - startMs) / 1000);
+    firstStat = {
+      label: "Live Call",
+      value: formatDuration(elapsedSec),
+      delta: liveCall.customer_name || liveCall.caller_number || "Unknown Caller",
+      icon: Phone,
+      color: "#ef4444" // pulse red
+    };
+  } else {
+    firstStat = {
+      label: "Active Agents",
+      value: "1",
+      delta: "Sofia is live",
+      icon: Bot,
+      color: "#6366f1"
+    };
+  }
+
   const stats = [
-    { label: "Active Agents", value: "1", delta: "Sofia is live", icon: Bot, color: "#6366f1" },
+    firstStat,
     { label: "Calls Today", value: todayCalls.length.toString(), delta: `${sessions.length} total records`, icon: Phone, color: "#10b981" },
     { label: "Appointments Booked", value: booked.length.toString(), delta: `${ended.length > 0 ? Math.round((booked.length / ended.length) * 100) : 0}% conv. rate`, icon: Users, color: "#f59e0b" },
     { label: "Avg. Call Duration", value: formatDuration(avgDur), delta: "Sofia persona active", icon: TrendingUp, color: "#8b5cf6" },
