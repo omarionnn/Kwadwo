@@ -134,35 +134,47 @@ export default function OverviewPage() {
 
           {/* Stats Grid */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 28 }}>
-            {stats.map(stat => {
-              const Icon = stat.icon;
-              return (
-                <div key={stat.label} className="card card-hover" style={{ padding: 18 }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                    <div
-                      style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 9,
-                        background: `${stat.color}18`,
-                        border: `1px solid ${stat.color}30`,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Icon size={16} color={stat.color} />
-                    </div>
-                    <ArrowUpRight size={14} color="var(--text-muted)" />
-                  </div>
-                  <div style={{ fontSize: 26, fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.5px" }}>
-                    {stat.value}
-                  </div>
-                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{stat.label}</div>
-                  <div style={{ fontSize: 11, color: stat.color, marginTop: 6, fontWeight: 500 }}>{stat.delta}</div>
+            {loading && sessions.length === 0 ? (
+              /* Loading skeleton */
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="card" style={{ padding: 18 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 9, background: "var(--bg-hover)", marginBottom: 14 }} />
+                  <div style={{ width: 80, height: 26, borderRadius: 6, background: "var(--bg-hover)", marginBottom: 6 }} />
+                  <div style={{ width: 60, height: 12, borderRadius: 4, background: "var(--bg-hover)", marginBottom: 6 }} />
+                  <div style={{ width: 100, height: 11, borderRadius: 4, background: "var(--bg-hover)" }} />
                 </div>
-              );
-            })}
+              ))
+            ) : (
+              stats.map(stat => {
+                const Icon = stat.icon;
+                return (
+                  <div key={stat.label} className="card card-hover" style={{ padding: 18 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                      <div
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 9,
+                          background: `${stat.color}18`,
+                          border: `1px solid ${stat.color}30`,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Icon size={16} color={stat.color} />
+                      </div>
+                      <ArrowUpRight size={14} color="var(--text-muted)" />
+                    </div>
+                    <div style={{ fontSize: 26, fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.5px" }}>
+                      {stat.value}
+                    </div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{stat.label}</div>
+                    <div style={{ fontSize: 11, color: stat.color, marginTop: 6, fontWeight: 500 }}>{stat.delta}</div>
+                  </div>
+                );
+              })
+            )}
           </div>
 
           {/* Two column layout */}
