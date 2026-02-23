@@ -138,49 +138,69 @@ async def get_agent():
 
 @router.patch("/agent", response_model=AgentConfig)
 async def update_agent(patch: AgentPatchRequest):
-    """Update the live Sofia assistant on Vapi."""
+    """Update the live Sofia assistant on Vapi.
+
+    Fetches the current config first so we can deep-merge model changes
+    instead of overwriting the entire model object (which would wipe tools,
+    model name, temperature, etc.).
+    """
     aid = _assistant_id()
 
-    # Build Vapi-shaped payload from our flat patch
-    payload: dict = {}
-
-    if patch.name is not None:
-        payload["name"] = patch.name
-
-    if patch.firstMessage is not None:
-        payload["firstMessage"] = patch.firstMessage
-
-    # Model-level fields need to be nested
-    model_updates: dict = {}
-    if patch.systemPrompt is not None:
-        model_updates["messages"] = [{"role": "system", "content": patch.systemPrompt}]
-    if patch.model is not None:
-        model_updates["model"] = patch.model
-    if patch.temperature is not None:
-        model_updates["temperature"] = patch.temperature
-    if model_updates:
-        # Vapi requires provider when patching model
-        model_updates["provider"] = "openai"
-        payload["model"] = model_updates
-
-    # Voice
-    if patch.voiceProvider is not None or patch.voiceId is not None:
-        voice_update: dict = {}
-        if patch.voiceProvider is not None:
-            voice_update["provider"] = patch.voiceProvider
-        if patch.voiceId is not None:
-            voice_update["voiceId"] = patch.voiceId
-        # Vapi requires provider when patching voice
-        if "provider" not in voice_update:
-            voice_update["provider"] = "openai"
-        payload["voice"] = voice_update
-
-    if not payload:
-        raise HTTPException(status_code=400, detail="No fields to update")
-
-    logger.info(f"Patching Vapi assistant {aid}: {list(payload.keys())}")
-
     async with httpx.AsyncClient(timeout=15) as client:
+        # ── 1. Fetch current assistant config ────────────────────────────
+        current_resp = await client.get(
+            f"{VAPI_BASE}/assistant/{aid}",
+            headers=_headers(),
+        )
+        if current_resp.status_code >= 400:
+            logger.error(f"Vapi GET error before patch: {current_resp.status_code} {current_resp.text}")
+            raise HTTPException(status_code=current_resp.status_code, detail="Failed to fetch current config")
+        current = current_resp.json()
+
+        # ── 2. Build Vapi-shaped payload with deep merge ─────────────────
+        payload: dict = {}
+
+        if patch.name is not None:
+            payload["name"] = patch.name
+
+        if patch.firstMessage is not None:
+            payload["firstMessage"] = patch.firstMessage
+
+        # Deep-merge model fields into existing model config
+        model_cfg = current.get("model", {})
+        model_changed = False
+
+        if patch.systemPrompt is not None:
+            model_cfg["messages"] = [{"role": "system", "content": patch.systemPrompt}]
+            model_changed = True
+        if patch.model is not None:
+            model_cfg["model"] = patch.model
+            model_changed = True
+        if patch.temperature is not None:
+            model_cfg["temperature"] = patch.temperature
+            model_changed = True
+
+        if model_changed:
+            # Ensure provider is always present
+            model_cfg.setdefault("provider", "openai")
+            payload["model"] = model_cfg
+
+        # Deep-merge voice fields into existing voice config
+        if patch.voiceProvider is not None or patch.voiceId is not None:
+            voice_cfg = current.get("voice", {})
+            if patch.voiceProvider is not None:
+                voice_cfg["provider"] = patch.voiceProvider
+            if patch.voiceId is not None:
+                voice_cfg["voiceId"] = patch.voiceId
+            voice_cfg.setdefault("provider", "openai")
+            payload["voice"] = voice_cfg
+
+        if not payload:
+            raise HTTPException(status_code=400, detail="No fields to update")
+
+        logger.info(f"Patching Vapi assistant {aid}: {list(payload.keys())}")
+
+        # ── 3. Send merged payload ───────────────────────────────────────
         resp = await client.patch(
             f"{VAPI_BASE}/assistant/{aid}",
             headers=_headers(),

@@ -167,12 +167,14 @@ class TestPatchAgent:
         mock_client = AsyncMock()
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.get = AsyncMock(return_value=_mock_response(200, MOCK_VAPI_ASSISTANT))
         mock_client.patch = AsyncMock(return_value=_mock_response(200, MOCK_VAPI_ASSISTANT))
         mock_client_cls.return_value = mock_client
 
         resp = client.patch("/api/agent", json={"name": "New Name"})
         assert resp.status_code == 200
-        # Verify that patch was called
+        # Verify that both get (fetch current) and patch were called
+        mock_client.get.assert_called_once()
         mock_client.patch.assert_called_once()
 
     @patch("app.api.agent_routes.httpx.AsyncClient")
@@ -180,6 +182,7 @@ class TestPatchAgent:
         mock_client = AsyncMock()
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.get = AsyncMock(return_value=_mock_response(200, MOCK_VAPI_ASSISTANT))
         mock_client.patch = AsyncMock(return_value=_mock_response(200, MOCK_VAPI_ASSISTANT))
         mock_client_cls.return_value = mock_client
 
@@ -190,19 +193,29 @@ class TestPatchAgent:
         payload = call_kwargs.kwargs.get("json") or call_kwargs[1].get("json")
         assert "model" in payload
         assert payload["model"]["messages"][0]["content"] == "New prompt"
+        # Verify tools are preserved from the fetched config
+        assert "tools" in payload["model"]
 
     @patch("app.api.agent_routes.httpx.AsyncClient")
     def test_patch_voice(self, mock_client_cls, client):
         mock_client = AsyncMock()
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.get = AsyncMock(return_value=_mock_response(200, MOCK_VAPI_ASSISTANT))
         mock_client.patch = AsyncMock(return_value=_mock_response(200, MOCK_VAPI_ASSISTANT))
         mock_client_cls.return_value = mock_client
 
         resp = client.patch("/api/agent", json={"voiceId": "shimmer"})
         assert resp.status_code == 200
 
-    def test_patch_empty_body_returns_400(self, client):
+    @patch("app.api.agent_routes.httpx.AsyncClient")
+    def test_patch_empty_body_returns_400(self, mock_client_cls, client):
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.get = AsyncMock(return_value=_mock_response(200, MOCK_VAPI_ASSISTANT))
+        mock_client_cls.return_value = mock_client
+
         resp = client.patch("/api/agent", json={})
         assert resp.status_code == 400
 
@@ -211,6 +224,7 @@ class TestPatchAgent:
         mock_client = AsyncMock()
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.get = AsyncMock(return_value=_mock_response(200, MOCK_VAPI_ASSISTANT))
         mock_client.patch = AsyncMock(return_value=_mock_response(200, MOCK_VAPI_ASSISTANT))
         mock_client_cls.return_value = mock_client
 
@@ -219,14 +233,18 @@ class TestPatchAgent:
         call_kwargs = mock_client.patch.call_args
         payload = call_kwargs.kwargs.get("json") or call_kwargs[1].get("json")
         assert payload["model"]["temperature"] == 0.8
+        # Verify tools are preserved
+        assert "tools" in payload["model"]
 
     @patch("app.api.agent_routes.httpx.AsyncClient")
     def test_patch_returns_error_when_vapi_rejects(self, mock_client_cls, client):
         mock_client = AsyncMock()
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.get = AsyncMock(return_value=_mock_response(200, MOCK_VAPI_ASSISTANT))
         mock_client.patch = AsyncMock(return_value=_mock_response(400, {"error": "bad"}))
         mock_client_cls.return_value = mock_client
 
         resp = client.patch("/api/agent", json={"name": "fail"})
         assert resp.status_code == 400
+
