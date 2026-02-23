@@ -72,8 +72,14 @@ export default function OverviewPage() {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayCalls = sessions.filter((s: CallSession) => s.created_at?.startsWith(todayStr));
 
-  // Find live call
-  const liveCall = sessions.find((s: CallSession) => s.state !== "ended" && s.state !== "initiated");
+  // Find live call — exclude stale sessions (>10 min without ending = webhook was missed)
+  const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
+  const liveCall = sessions.find((s: CallSession) => {
+    if (s.state === "ended" || s.state === "initiated") return false;
+    if (!s.created_at) return false;
+    const ageMs = now - new Date(s.created_at).getTime();
+    return ageMs < STALE_THRESHOLD_MS;
+  });
 
   // Detect when a live call transitions to ended (15s display)
   const recentlyEnded = useRecentlyEndedCall(sessions, liveCall);
