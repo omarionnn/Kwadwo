@@ -139,6 +139,7 @@ async def create_assistant(api_key: str, webhook_url: str) -> dict:
         )
         if resp.status_code >= 400:
             logger.error(f"Vapi Error {resp.status_code}: {resp.text}")
+            print(f"VAPI REJECTED: {resp.text}")
         resp.raise_for_status()
         data = resp.json()
         logger.info(f"Created Vapi assistant: {data['id']}")
