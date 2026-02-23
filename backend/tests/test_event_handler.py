@@ -249,3 +249,176 @@ class TestFullLifecycle:
         assert s.service_type == "Oil Change"
 
 
+# ── modern tool-calls format ─────────────────────────────────────────────────
+
+class TestModernToolCalls:
+    async def test_tool_calls_returns_results_array(self):
+        await handle_vapi_event(_make_message("call-start"))
+        msg = _make_message(
+            "tool-calls",
+            toolCallList=[{
+                "id": "tc-001",
+                "type": "function",
+                "function": {
+                    "name": "book_service_appointment",
+                    "arguments": {
+                        "customer_name": "Alex Johnson",
+                        "phone_number": "+14045559999",
+                        "service_type": "Tire Rotation",
+                        "preferred_time": "Wednesday afternoon",
+                    },
+                },
+            }],
+        )
+        result = await handle_vapi_event(msg)
+        assert "results" in result
+        assert len(result["results"]) == 1
+        assert result["results"][0]["toolCallId"] == "tc-001"
+
+    async def test_tool_calls_with_json_string_arguments(self):
+        """Vapi sometimes sends arguments as a JSON string, not a dict."""
+        import json
+        await handle_vapi_event(_make_message("call-start"))
+        args_str = json.dumps({
+            "customer_name": "Bob Smith",
+            "phone_number": "+14045550001",
+            "service_type": "Brakes",
+            "preferred_time": "Friday at noon",
+        })
+        msg = _make_message(
+            "tool-calls",
+            toolCallList=[{
+                "id": "tc-002",
+                "type": "function",
+                "function": {
+                    "name": "book_service_appointment",
+                    "arguments": args_str,
+                },
+            }],
+        )
+        result = await handle_vapi_event(msg)
+        assert "results" in result
+        session = await get_session("test-call")
+        assert session.customer_name == "Bob Smith"
+
+    async def test_tool_calls_with_empty_list_returns_empty(self):
+        await handle_vapi_event(_make_message("call-start"))
+        msg = _make_message("tool-calls", toolCallList=[])
+        result = await handle_vapi_event(msg)
+        assert result == {}
+
+    async def test_tool_calls_unknown_tool_returns_error(self):
+        await handle_vapi_event(_make_message("call-start"))
+        msg = _make_message(
+            "tool-calls",
+            toolCallList=[{
+                "id": "tc-003",
+                "type": "function",
+                "function": {"name": "nonexistent_tool", "arguments": {}},
+            }],
+        )
+        result = await handle_vapi_event(msg)
+        assert "results" in result
+        assert "Unknown tool" in result["results"][0]["result"]
+
+
+# ── call-end transcript extraction ───────────────────────────────────────────
+
+class TestCallEndTranscriptExtraction:
+    async def test_extracts_transcript_from_call_messages(self):
+        await handle_vapi_event(_make_message("call-start"))
+        msg = _make_message(
+            "call-end",
+            call={
+                "id": "test-call",
+                "customer": {"number": "+14045551234"},
+                "endedReason": "customer-ended-call",
+                "cost": 0.003,
+                "duration": 60.0,
+                "messages": [
+                    {"role": "assistant", "message": "Hi, how can I help?"},
+                    {"role": "user", "message": "I need an oil change."},
+                    {"role": "assistant", "message": "Sure thing!"},
+                ],
+            },
+        )
+        await handle_vapi_event(msg)
+        session = await get_session("test-call")
+        assert len(session.transcript) == 3
+        assert session.transcript[0]["role"] == "assistant"
+        assert session.transcript[1]["role"] == "user"
+
+    async def test_does_not_overwrite_existing_transcript(self):
+        """If transcripts were already collected during the call, don't overwrite."""
+        await handle_vapi_event(_make_message("call-start"))
+        # Simulate a mid-call transcript
+        await handle_vapi_event(_make_message(
+            "transcript", role="user",
+            transcript="I need service.", transcriptType="final"
+        ))
+        session = await get_session("test-call")
+        assert len(session.transcript) == 1
+
+        # Now end with messages — should NOT overwrite
+        msg = _make_message(
+            "call-end",
+            call={
+                "id": "test-call",
+                "customer": {"number": "+14045551234"},
+                "endedReason": "customer-ended-call",
+                "cost": None,
+                "duration": 30.0,
+                "messages": [
+                    {"role": "assistant", "message": "Hi!"},
+                    {"role": "user", "message": "I need service."},
+                ],
+            },
+        )
+        await handle_vapi_event(msg)
+        session = await get_session("test-call")
+        # Original transcript preserved
+        assert len(session.transcript) == 1
+
+    async def test_handles_missing_cost_gracefully(self):
+        await handle_vapi_event(_make_message("call-start"))
+        msg = _make_message(
+            "call-end",
+            call={
+                "id": "test-call",
+                "customer": {"number": "+14045551234"},
+                "endedReason": "assistant-ended-call",
+                "cost": None,
+                "duration": 45.0,
+            },
+        )
+        await handle_vapi_event(msg)
+        session = await get_session("test-call")
+        assert session.cost_usd is None
+        assert session.duration_seconds == pytest.approx(45.0)
+
+    async def test_extracts_cost_from_breakdown(self):
+        await handle_vapi_event(_make_message("call-start"))
+        msg = _make_message(
+            "call-end",
+            call={
+                "id": "test-call",
+                "customer": {"number": "+14045551234"},
+                "endedReason": "customer-ended-call",
+                "cost": None,
+                "duration": 90.0,
+                "costBreakdown": {"total": 0.0125},
+            },
+        )
+        await handle_vapi_event(msg)
+        session = await get_session("test-call")
+        assert session.cost_usd == pytest.approx(0.0125)
+
+
+# ── status-update ────────────────────────────────────────────────────────────
+
+class TestStatusUpdate:
+    async def test_returns_empty_dict(self):
+        await handle_vapi_event(_make_message("call-start"))
+        msg = _make_message("status-update", status="in-progress")
+        result = await handle_vapi_event(msg)
+        assert result == {}

@@ -185,3 +185,108 @@ class TestVapiWebhook:
         session = asyncio.get_event_loop().run_until_complete(get_session("wh-004"))
         assert session.state == CallState.ENDED
         assert session.cost_usd == pytest.approx(0.003)
+
+
+# ── Webhook edge cases ───────────────────────────────────────────────────────
+
+class TestWebhookEdgeCases:
+    def test_modern_tool_calls_returns_results(self, client):
+        """Modern tool-calls format via the webhook endpoint returns a results array."""
+        client.post("/vapi/webhook", json={
+            "type": "call-start",
+            "call": {"id": "wh-tc-001", "customer": {"number": "+14045550010"}}
+        })
+        resp = client.post("/vapi/webhook", json={
+            "type": "tool-calls",
+            "call": {"id": "wh-tc-001", "customer": {"number": "+14045550010"}},
+            "toolCallList": [{
+                "id": "tc-edge-1",
+                "type": "function",
+                "function": {
+                    "name": "book_service_appointment",
+                    "arguments": {
+                        "customer_name": "Edge Test",
+                        "phone_number": "+14045550010",
+                        "service_type": "General Maintenance",
+                        "preferred_time": "Monday morning",
+                    },
+                },
+            }],
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "results" in data
+        assert data["results"][0]["toolCallId"] == "tc-edge-1"
+
+    def test_transcript_webhook_appends_to_session(self, client):
+        import asyncio
+        from app.orchestrator.session_store import get_session
+        client.post("/vapi/webhook", json={
+            "type": "call-start",
+            "call": {"id": "wh-tr-001", "customer": {"number": "+14045550020"}}
+        })
+        client.post("/vapi/webhook", json={
+            "type": "transcript",
+            "call": {"id": "wh-tr-001", "customer": {"number": "+14045550020"}},
+            "role": "user",
+            "transcript": "I need an oil change.",
+            "transcriptType": "final",
+        })
+        session = asyncio.get_event_loop().run_until_complete(get_session("wh-tr-001"))
+        assert len(session.transcript) == 1
+        assert session.transcript[0]["text"] == "I need an oil change."
+
+    def test_partial_transcript_ignored(self, client):
+        import asyncio
+        from app.orchestrator.session_store import get_session
+        client.post("/vapi/webhook", json={
+            "type": "call-start",
+            "call": {"id": "wh-tr-002", "customer": {"number": "+14045550030"}}
+        })
+        client.post("/vapi/webhook", json={
+            "type": "transcript",
+            "call": {"id": "wh-tr-002", "customer": {"number": "+14045550030"}},
+            "role": "user",
+            "transcript": "I need",
+            "transcriptType": "partial",
+        })
+        session = asyncio.get_event_loop().run_until_complete(get_session("wh-tr-002"))
+        assert session.transcript == []
+
+    def test_debug_last_payload_returns_dict(self, client):
+        resp = client.get("/debug/last-payload")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert isinstance(data, dict)
+
+    def test_multiple_sessions_listed(self, client):
+        import asyncio
+        from app.orchestrator.session_store import save_session
+        for i in range(5):
+            s = CallSession(call_id=f"multi-{i}", state=CallState.ENDED)
+            asyncio.get_event_loop().run_until_complete(save_session(s))
+        resp = client.get("/sessions")
+        assert resp.status_code == 200
+        sessions = resp.json()["sessions"]
+        assert len(sessions) == 5
+
+    def test_webhook_with_message_envelope(self, client):
+        """Vapi sometimes wraps the event inside a 'message' key."""
+        resp = client.post("/vapi/webhook", json={
+            "message": {
+                "type": "call-start",
+                "call": {"id": "wh-env-001", "customer": {"number": "+14045550040"}}
+            }
+        })
+        assert resp.status_code == 200
+
+    def test_agent_routes_mounted(self, client):
+        """Verify /api/agent route exists (will fail auth but responds)."""
+        original = os.environ.get("VAPI_ASSISTANT_ID", "")
+        os.environ["VAPI_ASSISTANT_ID"] = ""
+        try:
+            resp = client.get("/api/agent")
+            # Should get 500 because VAPI_ASSISTANT_ID is empty, NOT 404
+            assert resp.status_code == 500
+        finally:
+            os.environ["VAPI_ASSISTANT_ID"] = original
