@@ -43,7 +43,7 @@ function mergeUnique(seeds: CallSession[], live: CallSession[]): CallSession[] {
 
 export function useSessions(pollIntervalMs = 5000) {
     const [sessions, setSessions] = useState<CallSession[]>(SEED);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     const fetchSessions = useCallback(async () => {
