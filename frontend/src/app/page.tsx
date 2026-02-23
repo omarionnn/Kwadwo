@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Sidebar from "@/components/sidebar/Sidebar";
 import Topbar from "@/components/sidebar/Topbar";
 import DemoBanner from "@/components/DemoBanner";
-import { Bot, Phone, Users, TrendingUp, ArrowUpRight, ArrowRight } from "lucide-react";
+import { Bot, Phone, Users, TrendingUp, ArrowUpRight, ArrowRight, CheckCircle, PhoneOff } from "lucide-react";
 import Link from "next/link";
 import { useSessions, outcomeFromSession, formatDuration, formatTime } from "@/components/calls/useSessions";
 import type { CallSession } from "@/components/calls/useSessions";
@@ -13,6 +13,11 @@ import type { CallSession } from "@/components/calls/useSessions";
 export default function OverviewPage() {
   const { sessions, loading } = useSessions(5000);
   const [now, setNow] = useState(() => Date.now());
+
+  // Track previously seen live call so we can detect when it ends
+  const prevLiveCallRef = useRef<CallSession | null>(null);
+  const [recentlyEnded, setRecentlyEnded] = useState<CallSession | null>(null);
+  const endedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Update time every second for live timers
   useEffect(() => {
@@ -34,8 +39,29 @@ export default function OverviewPage() {
   // Find live call
   const liveCall = sessions.find((s: CallSession) => s.state !== "ended" && s.state !== "initiated");
 
+  // Detect when a live call transitions to ended → show "Call Ended" for 15s
+  useEffect(() => {
+    const prevLive = prevLiveCallRef.current;
+    if (prevLive && !liveCall) {
+      // A live call just disappeared — it ended
+      const endedSession = sessions.find((s: CallSession) => s.call_id === prevLive.call_id) || prevLive;
+      setRecentlyEnded(endedSession);
+      // Clear any existing timer
+      if (endedTimerRef.current) clearTimeout(endedTimerRef.current);
+      endedTimerRef.current = setTimeout(() => setRecentlyEnded(null), 15000);
+    }
+    prevLiveCallRef.current = liveCall ?? null;
+  }, [liveCall, sessions]);
+
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => { if (endedTimerRef.current) clearTimeout(endedTimerRef.current); };
+  }, []);
+
+  // ── First stat card: 3 states ─────────────────────────────────────────
   let firstStat;
   if (liveCall && liveCall.created_at) {
+    // STATE 1: Active call
     const startMs = new Date(liveCall.created_at).getTime();
     const elapsedSec = Math.floor((now - startMs) / 1000);
     firstStat = {
@@ -45,13 +71,23 @@ export default function OverviewPage() {
       icon: Phone,
       color: "#ef4444" // pulse red
     };
-  } else {
+  } else if (recentlyEnded) {
+    // STATE 2: Call just ended (15s window)
     firstStat = {
-      label: "Active Agents",
-      value: "1",
-      delta: "Sofia is live",
-      icon: Bot,
-      color: "#6366f1"
+      label: "Call Ended",
+      value: formatDuration(recentlyEnded.duration_seconds),
+      delta: recentlyEnded.customer_name || recentlyEnded.caller_number || "Unknown Caller",
+      icon: PhoneOff,
+      color: "#f59e0b" // amber
+    };
+  } else {
+    // STATE 3: Idle — ready to answer
+    firstStat = {
+      label: "Ready to Answer",
+      value: "Online",
+      delta: "Sofia is standing by",
+      icon: CheckCircle,
+      color: "#10b981" // green
     };
   }
 
