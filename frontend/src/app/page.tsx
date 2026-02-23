@@ -10,14 +10,50 @@ import { useSessions, outcomeFromSession, formatDuration, formatTime } from "@/c
 import type { CallSession } from "@/components/calls/useSessions";
 
 
+/**
+ * Custom hook: detects when a live call transitions to ended
+ * and returns the ended session for 15 seconds.
+ *
+ * - setState is called only inside setTimeout callbacks (async),
+ *   so it satisfies react-hooks/set-state-in-effect.
+ * - Refs are only accessed inside the effect, never during render,
+ *   so it satisfies react-hooks/refs.
+ */
+function useRecentlyEndedCall(
+  sessions: CallSession[],
+  liveCall: CallSession | undefined,
+): CallSession | null {
+  const [recentlyEnded, setRecentlyEnded] = useState<CallSession | null>(null);
+  const prevLiveCallIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const prevId = prevLiveCallIdRef.current;
+    const currentId = liveCall?.call_id ?? null;
+
+    // Update the ref first (ref writes in effects are fine)
+    prevLiveCallIdRef.current = currentId;
+
+    // A live call just disappeared → it ended
+    if (prevId && !currentId) {
+      const endedSession = sessions.find((s) => s.call_id === prevId) ?? null;
+      // Use setTimeout so setState is async (in a callback), not synchronous
+      const showTimer = setTimeout(() => setRecentlyEnded(endedSession), 0);
+      const hideTimer = setTimeout(() => setRecentlyEnded(null), 15000);
+      return () => {
+        clearTimeout(showTimer);
+        clearTimeout(hideTimer);
+      };
+    }
+    return undefined;
+  }, [liveCall?.call_id, sessions]);
+
+  return recentlyEnded;
+}
+
+
 export default function OverviewPage() {
   const { sessions, loading } = useSessions(5000);
   const [now, setNow] = useState(() => Date.now());
-
-  // Track previously seen live call so we can detect when it ends
-  const prevLiveCallRef = useRef<CallSession | null>(null);
-  const [recentlyEnded, setRecentlyEnded] = useState<CallSession | null>(null);
-  const endedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Update time every second for live timers
   useEffect(() => {
@@ -39,24 +75,8 @@ export default function OverviewPage() {
   // Find live call
   const liveCall = sessions.find((s: CallSession) => s.state !== "ended" && s.state !== "initiated");
 
-  // Detect when a live call transitions to ended → show "Call Ended" for 15s
-  useEffect(() => {
-    const prevLive = prevLiveCallRef.current;
-    if (prevLive && !liveCall) {
-      // A live call just disappeared — it ended
-      const endedSession = sessions.find((s: CallSession) => s.call_id === prevLive.call_id) || prevLive;
-      setRecentlyEnded(endedSession);
-      // Clear any existing timer
-      if (endedTimerRef.current) clearTimeout(endedTimerRef.current);
-      endedTimerRef.current = setTimeout(() => setRecentlyEnded(null), 15000);
-    }
-    prevLiveCallRef.current = liveCall ?? null;
-  }, [liveCall, sessions]);
-
-  // Clean up timer on unmount
-  useEffect(() => {
-    return () => { if (endedTimerRef.current) clearTimeout(endedTimerRef.current); };
-  }, []);
+  // Detect when a live call transitions to ended (15s display)
+  const recentlyEnded = useRecentlyEndedCall(sessions, liveCall);
 
   // ── First stat card: 3 states ─────────────────────────────────────────
   let firstStat;

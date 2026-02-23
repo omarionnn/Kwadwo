@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
     Bot, LayoutDashboard, Phone, Users, BarChart3,
-    Settings, Zap, ChevronRight, PlusCircle
+    Settings, Zap, ChevronRight, PlusCircle, Activity
 } from "lucide-react";
 
 const navItems = [
@@ -13,6 +13,7 @@ const navItems = [
     { icon: Phone, label: "Call Logs", href: "/calls" },
     { icon: Users, label: "Campaigns", href: "/campaigns" },
     { icon: BarChart3, label: "Analytics", href: "/analytics" },
+    { icon: Activity, label: "Status", href: "/status" },
 ];
 
 const bottomItems = [
