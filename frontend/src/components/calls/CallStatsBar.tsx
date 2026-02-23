@@ -2,7 +2,7 @@
 
 import { Phone, CheckCircle, Clock, MessageSquare } from "lucide-react";
 import type { CallSession } from "./useSessions";
-import { outcomeFromSession, formatDuration } from "./useSessions";
+import { formatDuration } from "./useSessions";
 
 interface Props {
     sessions: CallSession[];

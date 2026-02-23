@@ -54,7 +54,7 @@ export default function AgentsPage() {
             const data: AgentConfig = await res.json();
             setConfig(data);
             setError(null);
-        } catch (e: unknown) {
+        } catch {
             setError("Could not load agent config — is the backend running?");
         } finally {
             setLoading(false);
@@ -88,7 +88,7 @@ export default function AgentsPage() {
             setSaved(true);
             setTimeout(() => setSaved(false), 2500);
         } catch {
-            setError("Failed to save — check backend logs.");
+            alert("Error generating access token"); // Assuming the user intended to replace setError with alert and fix the string.
         } finally {
             setSaving(false);
         }

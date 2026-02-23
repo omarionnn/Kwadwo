@@ -122,7 +122,6 @@ export default function TranscriptDrawer({ session, onClose }: Props) {
                         { icon: Clock, label: "Preferred Time", value: session.chosen_slot ?? "—" },
                         { icon: Phone, label: "Cost", value: session.cost_usd ? `$${session.cost_usd.toFixed(4)}` : "—" },
                     ].map(item => {
-                        const Icon = item.icon;
                         return (
                             <div key={item.label} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 12px" }}>
                                 <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.06em" }}>

@@ -11,6 +11,7 @@ const sampleTranscript = [
     { role: "agent", text: "Thanks Marcus! I can see your F-150 in our system. We have openings tomorrow at 9 AM or Thursday at 2 PM. Which works better for you?" },
 ];
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function CallPreviewPanel({ agentName }: { agentName: string }) {
     const [active, setActive] = useState(false);
     const [muted, setMuted] = useState(false);

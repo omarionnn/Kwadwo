@@ -12,7 +12,7 @@ import type { CallSession } from "@/components/calls/useSessions";
 
 export default function OverviewPage() {
   const { sessions, loading } = useSessions(5000);
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
 
   // Update time every second for live timers
   useEffect(() => {

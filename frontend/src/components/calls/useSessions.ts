@@ -54,7 +54,7 @@ export function useSessions(pollIntervalMs = 5000) {
             const { sessions: live } = await res.json();
             setSessions(mergeUnique(SEED, live));
             setError(null);
-        } catch (e: unknown) {
+        } catch {
             setError("Backend offline — showing cached data");
         } finally {
             setLoading(false);

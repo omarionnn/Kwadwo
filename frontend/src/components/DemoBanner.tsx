@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Phone, Wifi, WifiOff, Copy, Check, Radio } from "lucide-react";
+import { Phone, WifiOff, Copy, Check, Radio } from "lucide-react";
 
 interface Config {
     phone_number: string | null;
