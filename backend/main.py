@@ -101,7 +101,7 @@ async def root():
     return {"service": "Saafi AI Voice Orchestrator", "status": "running"}
 
 
-@app.get("/health", tags=["Health"])
+@app.api_route("/health", tags=["Health"], methods=["GET", "HEAD"])
 async def health_check():
     return {"status": "healthy"}
 
