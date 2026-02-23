@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Sidebar from "@/components/sidebar/Sidebar";
 import Topbar from "@/components/sidebar/Topbar";
 import {
-    Activity, CheckCircle, AlertTriangle, XCircle, Clock,
+    CheckCircle, AlertTriangle, XCircle, Clock,
     RefreshCw, Globe, Wifi, ArrowUpRight
 } from "lucide-react";
 
