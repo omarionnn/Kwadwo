@@ -135,6 +135,23 @@ export default function TranscriptDrawer({ session, onClose }: Props) {
 
                 {/* Transcript */}
                 <div style={{ flex: 1, overflowY: "auto", padding: "16px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
+                    {session.summary && (
+                        <div style={{
+                            background: "var(--accent-glow)",
+                            border: "1px solid rgba(99,102,241,0.3)",
+                            borderRadius: 8,
+                            padding: "12px 14px",
+                            marginBottom: 16,
+                        }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, color: "#6366f1", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                <Bot size={14} /> AI Summary
+                            </div>
+                            <div style={{ fontSize: 13, color: "var(--text-primary)", lineHeight: 1.5 }}>
+                                {session.summary}
+                            </div>
+                        </div>
+                    )}
+
                     {session.transcript.length === 0 ? (
                         <div style={{ color: "var(--text-muted)", fontSize: 13, textAlign: "center", marginTop: 40 }}>
                             No transcript available

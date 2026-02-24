@@ -24,6 +24,7 @@ export interface CallSession {
     ended_reason: string | null;
     cost_usd: number | null;
     duration_seconds: number | null;
+    summary?: string;
     /** true for seeded demo rows, undefined/false for real backend sessions */
     isDemo?: boolean;
 }

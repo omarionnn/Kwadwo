@@ -6,7 +6,7 @@ and verifies that CallSession state transitions happen correctly.
 """
 
 import pytest
-from app.models.call_models import CallState, CallSession, VapiMessage, VapiEventType
+from app.models.call_models import CallState, CallSession, VapiMessage, VapiEventType, VapiCall
 from app.orchestrator.event_handler import handle_vapi_event
 from app.orchestrator.session_store import get_session, _STORE
 
@@ -20,12 +20,23 @@ def clear_store():
 
 def _make_message(event_type: str, call_id: str = "test-call", **kwargs) -> VapiMessage:
     """Helper to build a VapiMessage for testing."""
-    base = {
-        "type": event_type,
-        "call": {"id": call_id, "customer": {"number": "+14045551234"}},
-    }
-    base.update(kwargs)
-    return VapiMessage.model_validate(base)
+    # Tests might pass 'call' or 'call_kwargs' — normalize to 'call_kwargs'
+    call_kwargs = kwargs.pop("call_kwargs", {})
+    if not call_kwargs:
+        call_kwargs = kwargs.pop("call", {})
+
+    if "id" not in call_kwargs:
+        call_kwargs["id"] = call_id
+
+    if "customer" not in call_kwargs:
+        call_kwargs["customer"] = {"number": "+14045551234"}
+
+    call_obj = VapiCall(**call_kwargs)
+    # Ensure model_extra is an empty dict if not set, for consistent behavior
+    if call_obj.model_extra is None:
+        call_obj.model_extra = {}
+    
+    return VapiMessage(type=event_type, call=call_obj, **kwargs)
 
 
 # ── call-start ────────────────────────────────────────────────────────────────
@@ -170,7 +181,7 @@ class TestCallEnded:
         await handle_vapi_event(_make_message("call-start"))
         msg = _make_message(
             "call-end",
-            call={
+            call_kwargs={
                 "id": "test-call",
                 "customer": {"number": "+14045551234"},
                 "endedReason": "customer-ended-call",
@@ -189,7 +200,7 @@ class TestCallEnded:
         await handle_vapi_event(_make_message("call-start"))
         msg = _make_message(
             "call-end",
-            call={
+            call_kwargs={
                 "id": "test-call",
                 "customer": {"number": "+14045551234"},
                 "endedReason": "no-answer",
@@ -240,7 +251,7 @@ class TestFullLifecycle:
 
         # 4. Call ends
         await handle_vapi_event(msg("call-end",
-            call={"id": call_id, "customer": {"number": "+14045550293"},
+            call_kwargs={"id": call_id, "customer": {"number": "+14045550293"},
                   "endedReason": "customer-ended-call", "cost": 0.004, "duration": 156}))
         s = await get_session(call_id)
         assert s.state == CallState.ENDED
@@ -329,7 +340,7 @@ class TestCallEndTranscriptExtraction:
         await handle_vapi_event(_make_message("call-start"))
         msg = _make_message(
             "call-end",
-            call={
+            call_kwargs={
                 "id": "test-call",
                 "customer": {"number": "+14045551234"},
                 "endedReason": "customer-ended-call",
@@ -362,7 +373,7 @@ class TestCallEndTranscriptExtraction:
         # Now end with messages — should NOT overwrite
         msg = _make_message(
             "call-end",
-            call={
+            call_kwargs={
                 "id": "test-call",
                 "customer": {"number": "+14045551234"},
                 "endedReason": "customer-ended-call",
@@ -383,7 +394,7 @@ class TestCallEndTranscriptExtraction:
         await handle_vapi_event(_make_message("call-start"))
         msg = _make_message(
             "call-end",
-            call={
+            call_kwargs={
                 "id": "test-call",
                 "customer": {"number": "+14045551234"},
                 "endedReason": "assistant-ended-call",
@@ -400,7 +411,7 @@ class TestCallEndTranscriptExtraction:
         await handle_vapi_event(_make_message("call-start"))
         msg = _make_message(
             "call-end",
-            call={
+            call_kwargs={
                 "id": "test-call",
                 "customer": {"number": "+14045551234"},
                 "endedReason": "customer-ended-call",

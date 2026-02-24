@@ -240,6 +240,16 @@ async def _on_call_ended(session: CallSession, message: VapiMessage) -> dict:
         if breakdown:
             session.cost_usd = breakdown.get("total")
 
+    # ── Extract analysisPlan Summary ─────────────────────────────────────────
+    # Vapi sends analysis results (including summary) in the `analysis` object on call-end.
+    # We check both the parsed Pydantic field and the raw extra dictionary.
+    analysis = getattr(message.call, "analysis", None) or (message.call.model_extra or {}).get("analysis", {})
+    if analysis and isinstance(analysis, dict):
+        summary = analysis.get("summary")
+        if summary:
+            session.summary = summary
+            logger.info(f"[{session.call_id}] Extracted Call Summary: {summary}")
+
     # ── Extract transcript from call.messages ────────────────────────────────
     # Vapi includes the full conversation in call.messages on call-end.
     # Log the raw extra so we can debug the exact field name.
@@ -261,8 +271,8 @@ async def _on_call_ended(session: CallSession, message: VapiMessage) -> dict:
         messages_raw = (
             call_dump.get("messages")
             or call_dump.get("transcript")
-            or call_dump.get("artifact", {}).get("messages")
-            or call_dump.get("analysis", {}).get("transcript")
+            or (call_dump.get("artifact") or {}).get("messages")
+            or (call_dump.get("analysis") or {}).get("transcript")
             or []
         )
 

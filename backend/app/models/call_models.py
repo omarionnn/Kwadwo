@@ -50,6 +50,7 @@ class VapiCall(BaseModel):
     endedReason: Optional[str] = None
     cost: Optional[float] = None
     duration: Optional[float] = None
+    analysis: Optional[dict[str, Any]] = None
     # Real Vapi includes these extra fields:
     status: Optional[str] = None
     type: Optional[str] = None
@@ -124,6 +125,7 @@ class CallSession(BaseModel):
     ended_reason: Optional[str] = None
     cost_usd: Optional[float] = None
     duration_seconds: Optional[float] = None
+    summary: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------

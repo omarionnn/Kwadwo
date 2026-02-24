@@ -93,7 +93,7 @@ class TestCreateAssistant:
         # Verify the payload sent to Vapi
         call_kwargs = mock_client.post.call_args
         payload = call_kwargs.kwargs.get("json") or call_kwargs[1].get("json")
-        assert payload["name"] == "Sofia — Westside Auto"
+        assert payload["name"] == "Sofia - Service Appointment Agent"
         assert payload["serverUrl"] == "https://my-server.com/vapi/webhook"
         assert payload["firstMessage"] == FIRST_MESSAGE
         assert "model" in payload
