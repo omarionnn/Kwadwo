@@ -59,9 +59,15 @@ class TestConfigEndpoint:
         assert "demo_ready" in data
 
     def test_demo_not_ready_without_setup(self, client):
-        resp = client.get("/config")
-        # No /setup/vapi called, so demo_ready should be False
-        assert resp.json()["demo_ready"] is False
+        from main import _config
+        original_phone = _config.get("phone_number")
+        _config["phone_number"] = None
+        try:
+            resp = client.get("/config")
+            # No /setup/vapi called, so demo_ready should be False
+            assert resp.json()["demo_ready"] is False
+        finally:
+            _config["phone_number"] = original_phone
 
 
 # ── Sessions endpoints ────────────────────────────────────────────────────────

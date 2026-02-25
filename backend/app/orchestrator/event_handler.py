@@ -55,7 +55,7 @@ async def handle_vapi_event(message: VapiMessage) -> dict[str, Any]:
             return await _on_tool_calls(session, message)
         case VapiEventType.STATUS_UPDATE:
             return await _on_status_update(session, message)
-        case VapiEventType.CALL_ENDED:
+        case VapiEventType.CALL_ENDED | VapiEventType.END_OF_CALL_REPORT:
             return await _on_call_ended(session, message)
         case _:
             logger.debug(f"Unhandled Vapi event type: {message.type}")

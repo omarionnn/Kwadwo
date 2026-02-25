@@ -140,6 +140,17 @@ async def create_assistant(api_key: str, webhook_url: str) -> dict:
             "recordingEnabled": True,
             "videoRecordingEnabled": False,
         },
+        "analysisPlan": {
+            "summaryPlan": {
+                "enabled": True,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "Provide a brief 1-3 sentence summary of the call. Include the customer's intent, the outcome (e.g. booked appointment), and any key details like service requested."
+                    }
+                ]
+            }
+        }
     }
 
     async with httpx.AsyncClient(timeout=20) as client:

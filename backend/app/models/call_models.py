@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 class VapiEventType(str, Enum):
     CALL_STARTED  = "call-start"
     CALL_ENDED    = "call-end"
+    END_OF_CALL_REPORT = "end-of-call-report"
     TRANSCRIPT    = "transcript"
     FUNCTION_CALL = "function-call"  # legacy Vapi tool call format
     TOOL_CALLS    = "tool-calls"     # modern Vapi tool call format (plural)
