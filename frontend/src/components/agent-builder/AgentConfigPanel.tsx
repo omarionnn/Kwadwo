@@ -1,7 +1,7 @@
 "use client";
 
 import { Bot } from "lucide-react";
-import type { AgentConfig } from "@/app/agents/page";
+import type { AgentConfig } from "@/app/dashboard/agents/page";
 
 /* ── Real Vapi-compatible options ────────────────────────────────────── */
 
