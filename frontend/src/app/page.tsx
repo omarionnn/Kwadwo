@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { SignInButton, SignedIn, SignedOut } from "@clerk/nextjs";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
-import { Bot, CalendarCheck, ArrowRight, ShieldCheck, Zap, BarChart3, Clock, CheckCircle2, TrendingUp } from "lucide-react";
+import { Bot, CalendarCheck, ArrowRight, ShieldCheck, Zap, BarChart3, Clock, CheckCircle2, TrendingUp, Mic, MicOff, Loader2 } from "lucide-react";
+import Vapi from "@vapi-ai/web";
 
 // Mock conversation data for the interactive chat
 const conversations = {
@@ -57,6 +58,57 @@ const TypingMessage = ({ text, isAi }: { text: string; isAi: boolean }) => {
 export default function LandingPage() {
     const [activeTab, setActiveTab] = useState<"receptionist" | "scheduler" | "sales">("scheduler");
     const [visibleMessages, setVisibleMessages] = useState<number>(0);
+    const [callStatus, setCallStatus] = useState<"inactive" | "loading" | "active">("inactive");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const vapiRef = useRef<any>(null);
+
+    // Initialize Vapi SDK
+    useEffect(() => {
+        // Only initialize if the key exists to prevent silent crashes
+        if (!process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY) return;
+
+        const vapiInstance = new Vapi(process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY);
+        vapiRef.current = vapiInstance;
+
+        vapiInstance.on("call-start", () => setCallStatus("active"));
+        vapiInstance.on("call-end", () => setCallStatus("inactive"));
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        vapiInstance.on("error", (e: any) => {
+            console.error("Vapi Error Details:", e?.error?.message || e?.message || JSON.stringify(e));
+            setCallStatus("inactive");
+        });
+
+        return () => {
+            vapiInstance.stop();
+            vapiInstance.removeAllListeners();
+        };
+    }, []);
+
+    const toggleCall = async () => {
+        if (!process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY || !process.env.NEXT_PUBLIC_VAPI_SALES_ASSISTANT_ID) {
+            alert("Vapi keys are missing! Please restart your 'npm run dev' terminal so Next.js can load the new .env.local file.");
+            return;
+        }
+
+        if (callStatus === "inactive") {
+            setCallStatus("loading");
+            try {
+                // Explicitly request microphone permissions BEFORE starting Vapi
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                // We don't need to keep the stream, just needed the browser to grant permission
+                // Vapi will grab its own stream now that permission is granted
+                stream.getTracks().forEach(track => track.stop());
+
+                vapiRef.current?.start(process.env.NEXT_PUBLIC_VAPI_SALES_ASSISTANT_ID);
+            } catch (err) {
+                console.error("Microphone permission denied:", err);
+                alert("Microphone access is required to talk to Saafi. Please allow microphone permissions in your browser settings.");
+                setCallStatus("inactive");
+            }
+        } else {
+            vapiRef.current?.stop();
+        }
+    };
 
     // Play conversation sequence when tab changes
     useEffect(() => {
@@ -135,15 +187,37 @@ export default function LandingPage() {
                     <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center", position: "relative", perspective: 1000 }}>
                         <div style={{ position: "absolute", width: 450, height: 450, background: "radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(59,130,246,0) 70%)", borderRadius: "50%", animation: "pulse 4s infinite alternate" }} />
 
+                        {/* Speech Tooltip */}
                         <motion.div
-                            style={{ x: orbX, y: orbY, rotateX: orbRotateX, rotateY: orbRotateY, width: 280, height: 280, borderRadius: "50%", background: "linear-gradient(135deg, #1e3a8a, #3b82f6)", boxShadow: "0 20px 40px -10px rgba(37, 99, 235, 0.4), inset 0 0 40px rgba(255,255,255,0.2)", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", cursor: "pointer", position: "relative", zIndex: 1, transformStyle: "preserve-3d" }}
-                            whileHover={{ scale: 1.05, boxShadow: "0 30px 60px -15px rgba(37, 99, 235, 0.6), inset 0 0 40px rgba(255,255,255,0.3)" }}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 1, duration: 0.5 }}
+                            style={{ position: "absolute", left: -80, top: "20%", backgroundColor: "white", padding: "10px 16px", borderRadius: 12, boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)", display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, color: "#1e293b", zIndex: 10 }}
                         >
-                            <Bot size={72} color="white" style={{ marginBottom: 16, transform: "translateZ(30px)" }} />
+                            {callStatus === "inactive" && <><Mic size={16} color="#2563eb" /> Click to talk to Saafi</>}
+                            {callStatus === "loading" && <><Loader2 size={16} color="#2563eb" className="animate-spin" /> Connecting...</>}
+                            {callStatus === "active" && <><MicOff size={16} color="#ef4444" /> Click to end call</>}
+                        </motion.div>
+
+                        <motion.div
+                            onClick={toggleCall}
+                            style={{ x: orbX, y: orbY, rotateX: orbRotateX, rotateY: orbRotateY, width: 280, height: 280, borderRadius: "50%", background: callStatus === "active" ? "linear-gradient(135deg, #4f46e5, #ec4899)" : "linear-gradient(135deg, #1e3a8a, #3b82f6)", boxShadow: callStatus === "active" ? "0 20px 60px -10px rgba(236, 72, 153, 0.6), inset 0 0 60px rgba(255,255,255,0.4)" : "0 20px 40px -10px rgba(37, 99, 235, 0.4), inset 0 0 40px rgba(255,255,255,0.2)", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", cursor: "pointer", position: "relative", zIndex: 1, transformStyle: "preserve-3d" }}
+                            whileHover={{ scale: 1.05, boxShadow: callStatus === "active" ? "0 30px 80px -15px rgba(236, 72, 153, 0.8), inset 0 0 60px rgba(255,255,255,0.5)" : "0 30px 60px -15px rgba(37, 99, 235, 0.6), inset 0 0 40px rgba(255,255,255,0.3)" }}
+                        >
+                            {callStatus === "loading" ? (
+                                <Loader2 size={72} color="white" style={{ marginBottom: 16, transform: "translateZ(30px)" }} className="animate-spin" />
+                            ) : (
+                                <Bot size={72} color="white" style={{ marginBottom: 16, transform: "translateZ(30px)" }} />
+                            )}
                             <span style={{ color: "white", fontWeight: 600, fontSize: 15, letterSpacing: "0.5px", transform: "translateZ(20px)" }}>Saafi</span>
                             <div style={{ display: "flex", gap: 4, marginTop: 16, transform: "translateZ(10px)" }}>
                                 {[1, 2, 3, 4, 5, 6].map((i) => (
-                                    <motion.div key={i} animate={{ height: [12, Math.random() * 20 + 10, 12] }} transition={{ repeat: Infinity, duration: 0.5 + Math.random(), delay: Math.random() }} style={{ width: 4, backgroundColor: "rgba(255,255,255,0.7)", borderRadius: 2 }} />
+                                    <motion.div
+                                        key={i}
+                                        animate={{ height: callStatus === "active" ? [12, 18 + (i % 3) * 6, 12] : [12, 14 + (i % 2) * 4, 12] }}
+                                        transition={{ repeat: Infinity, duration: callStatus === "active" ? 1.2 : 2, ease: "easeInOut", delay: i * 0.15 }}
+                                        style={{ width: 4, backgroundColor: "rgba(255,255,255,0.7)", borderRadius: 2 }}
+                                    />
                                 ))}
                             </div>
                         </motion.div>
