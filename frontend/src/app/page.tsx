@@ -4,8 +4,9 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { SignInButton, SignedIn, SignedOut } from "@clerk/nextjs";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
-import { Bot, CalendarCheck, ArrowRight, ShieldCheck, Zap, BarChart3, Clock, CheckCircle2, TrendingUp, Mic, MicOff, Loader2 } from "lucide-react";
+import { Bot, CalendarCheck, ArrowRight, Zap, BarChart3, Clock, CheckCircle2, TrendingUp, Mic, MicOff, Loader2 } from "lucide-react";
 import Vapi from "@vapi-ai/web";
+import IntegrationsSection from "@/components/landing/IntegrationsSection";
 
 // Mock conversation data for the interactive chat
 const conversations = {
@@ -240,6 +241,9 @@ export default function LandingPage() {
                 </motion.div>
             </motion.header>
 
+            {/* Integrations Marquee Section */}
+            <IntegrationsSection />
+
             {/* 3 Pillars & Interactive Demo Section */}
             <section id="demo" style={{ backgroundColor: "#ffffff", padding: "100px 10%", borderTop: "1px solid #e2e8f0" }}>
                 <motion.div initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} style={{ textAlign: "center", marginBottom: 60 }}>
@@ -315,14 +319,7 @@ export default function LandingPage() {
                 </div>
             </section>
 
-            {/* Trust & Security */}
-            <section style={{ backgroundColor: "#0f172a", color: "white", padding: "80px 10%", textAlign: "center" }}>
-                <motion.div initial={{ scale: 0.8, opacity: 0 }} whileInView={{ scale: 1, opacity: 1 }} viewport={{ once: true }}>
-                    <ShieldCheck size={48} color="#3b82f6" style={{ marginBottom: 24, margin: "0 auto" }} />
-                    <h2 style={{ fontSize: 32, fontWeight: 700, marginBottom: 16 }}>Integrates With the Systems Dealers Rely On</h2>
-                    <p style={{ fontSize: 16, color: "#94a3b8", maxWidth: 600, margin: "0 auto" }}>Saafi AI connects directly to your existing CRM and service schedulers, syncing data across your entire dealership automatically.</p>
-                </motion.div>
-            </section>
+
 
             {/* Footer & Admin Login */}
             <footer style={{ backgroundColor: "#ffffff", borderTop: "1px solid #e2e8f0", padding: "60px 10%", display: "flex", flexDirection: "column", alignItems: "center", gap: 40 }}>
