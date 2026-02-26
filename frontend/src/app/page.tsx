@@ -1,334 +1,290 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import Sidebar from "@/components/sidebar/Sidebar";
-import Topbar from "@/components/sidebar/Topbar";
-import DemoBanner from "@/components/DemoBanner";
-import { Bot, Phone, Users, TrendingUp, ArrowUpRight, ArrowRight, CheckCircle, PhoneOff } from "lucide-react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useSessions, outcomeFromSession, formatDuration, formatTime } from "@/components/calls/useSessions";
-import type { CallSession } from "@/components/calls/useSessions";
+import { SignInButton, SignedIn, SignedOut } from "@clerk/nextjs";
+import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { Bot, CalendarCheck, UserPlus, Moon, ArrowRight, ShieldCheck, Zap, MessageSquare, BarChart3, Clock, CheckCircle2, TrendingUp } from "lucide-react";
 
+// Mock conversation data for the interactive chat
+const conversations = {
+    receptionist: [
+        { role: "user", text: "Are you guys open right now?" },
+        { role: "ai", text: "Yes, we are open today from 7:00 AM to 6:00 PM. Would you like directions to the dealership?" },
+        { role: "user", text: "No, but are there any coffee shops nearby while I wait for my car?" },
+        { role: "ai", text: "Certainly! Beanline Coffee and Hilltop Deli are both within a 5-minute walk. I can text you directions if you'd like." }
+    ],
+    scheduler: [
+        { role: "user", text: "I need to schedule an oil change for my Camry." },
+        { role: "ai", text: "Of course. Let me check our availability. Our next open slot is tomorrow at 1:00 PM. Does that work for you?" },
+        { role: "user", text: "Yes, that's perfect." },
+        { role: "ai", text: "Great! I've booked your oil change for tomorrow at 1:00 PM. I just sent a confirmation text to your number. See you then!" }
+    ],
+    sales: [
+        { role: "user", text: "Do you have any RAV4 Hybrids in stock?" },
+        { role: "ai", text: "Let me check our real-time inventory... Yes, we currently have three RAV4 Hybrids available on the lot. Would you like to schedule a test drive?" },
+        { role: "user", text: "Yeah, can I come in around 3:15 PM today?" },
+        { role: "ai", text: "I've scheduled your test drive for today at 3:15 PM. One of our specialists will have the RAV4 pulled up and waiting for you." }
+    ]
+};
 
-/**
- * Custom hook: detects when a live call transitions to ended
- * and returns the ended session for 15 seconds.
- *
- * - setState is called only inside setTimeout callbacks (async),
- *   so it satisfies react-hooks/set-state-in-effect.
- * - Refs are only accessed inside the effect, never during render,
- *   so it satisfies react-hooks/refs.
- */
-function useRecentlyEndedCall(
-  sessions: CallSession[],
-  liveCall: CallSession | undefined,
-): CallSession | null {
-  const [recentlyEnded, setRecentlyEnded] = useState<CallSession | null>(null);
-  const prevLiveCallIdRef = useRef<string | null>(null);
+const TypingMessage = ({ text, isAi }: { text: string; isAi: boolean }) => {
+    const [displayed, setDisplayed] = useState("");
 
-  useEffect(() => {
-    const prevId = prevLiveCallIdRef.current;
-    const currentId = liveCall?.call_id ?? null;
+    useEffect(() => {
+        if (!isAi) {
+            setDisplayed(text);
+            return;
+        }
+        setDisplayed("");
+        let i = 0;
+        const interval = setInterval(() => {
+            setDisplayed(text.slice(0, i));
+            i++;
+            if (i > text.length) clearInterval(interval);
+        }, 15);
+        return () => clearInterval(interval);
+    }, [text, isAi]);
 
-    // Update the ref first (ref writes in effects are fine)
-    prevLiveCallIdRef.current = currentId;
+    return (
+        <>
+            {displayed}
+            {isAi && displayed.length < text.length && <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 0.8 }}>|</motion.span>}
+        </>
+    );
+};
 
-    // A live call just disappeared → it ended
-    if (prevId && !currentId) {
-      const endedSession = sessions.find((s) => s.call_id === prevId) ?? null;
-      // Use setTimeout so setState is async (in a callback), not synchronous
-      const showTimer = setTimeout(() => setRecentlyEnded(endedSession), 0);
-      const hideTimer = setTimeout(() => setRecentlyEnded(null), 15000);
-      return () => {
-        clearTimeout(showTimer);
-        clearTimeout(hideTimer);
-      };
-    }
-    return undefined;
-  }, [liveCall?.call_id, sessions]);
+export default function LandingPage() {
+    const [activeTab, setActiveTab] = useState<"receptionist" | "scheduler" | "sales">("scheduler");
+    const [visibleMessages, setVisibleMessages] = useState<number>(0);
 
-  return recentlyEnded;
-}
+    // Play conversation sequence when tab changes
+    useEffect(() => {
+        setVisibleMessages(0);
+        const msgs = conversations[activeTab];
+        let current = 0;
+        let timeout: NodeJS.Timeout;
 
+        const showNext = () => {
+            if (current < msgs.length) {
+                setVisibleMessages(current + 1);
+                const delay = msgs[current].role === "user" ? 800 : msgs[current].text.length * 15 + 600;
+                current++;
+                timeout = setTimeout(showNext, delay);
+            }
+        };
+        timeout = setTimeout(showNext, 300);
+        return () => clearTimeout(timeout);
+    }, [activeTab]);
 
-export default function OverviewPage() {
-  const { sessions, loading } = useSessions(5000);
-  const [now, setNow] = useState(() => Date.now());
+    // Orb Mouse Tracking
+    const mouseX = useMotionValue(0);
+    const mouseY = useMotionValue(0);
 
-  // Update time every second for live timers
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            mouseX.set(e.clientX - window.innerWidth / 2);
+            mouseY.set(e.clientY - window.innerHeight / 2);
+        };
+        window.addEventListener("mousemove", handleMouseMove);
+        return () => window.removeEventListener("mousemove", handleMouseMove);
+    }, [mouseX, mouseY]);
 
-  // Derived stats
-  const ended = sessions.filter((s: CallSession) => s.state === "ended");
-  const booked = sessions.filter((s: CallSession) => s.appointment_id);
-  const avgDur = ended.length > 0
-    ? ended.reduce((sum: number, s: CallSession) => sum + (s.duration_seconds ?? 0), 0) / ended.length
-    : 0;
+    const orbX = useSpring(useTransform(mouseX, [-1000, 1000], [-25, 25]), { damping: 20, stiffness: 100 });
+    const orbY = useSpring(useTransform(mouseY, [-1000, 1000], [-25, 25]), { damping: 20, stiffness: 100 });
+    const orbRotateX = useSpring(useTransform(mouseY, [-1000, 1000], [10, -10]), { damping: 20, stiffness: 100 });
+    const orbRotateY = useSpring(useTransform(mouseX, [-1000, 1000], [-10, 10]), { damping: 20, stiffness: 100 });
 
-  // Filter for calls today (UTC based check)
-  const todayStr = new Date().toISOString().split('T')[0];
-  const todayCalls = sessions.filter((s: CallSession) => s.created_at?.startsWith(todayStr));
-
-  // Find live call — exclude stale sessions (>10 min without ending = webhook was missed)
-  const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
-  const liveCall = sessions.find((s: CallSession) => {
-    if (s.state === "ended" || s.state === "initiated") return false;
-    if (!s.created_at) return false;
-    const ageMs = now - new Date(s.created_at).getTime();
-    return ageMs < STALE_THRESHOLD_MS;
-  });
-
-  // Detect when a live call transitions to ended (15s display)
-  const recentlyEnded = useRecentlyEndedCall(sessions, liveCall);
-
-  // ── First stat card: 3 states ─────────────────────────────────────────
-  let firstStat;
-  if (liveCall && liveCall.created_at) {
-    // STATE 1: Active call
-    const startMs = new Date(liveCall.created_at).getTime();
-    const elapsedSec = Math.floor((now - startMs) / 1000);
-    firstStat = {
-      label: "Live Call",
-      value: formatDuration(elapsedSec),
-      delta: liveCall.customer_name || liveCall.caller_number || "Unknown Caller",
-      icon: Phone,
-      color: "#ef4444" // pulse red
-    };
-  } else if (recentlyEnded) {
-    // STATE 2: Call just ended (15s window)
-    firstStat = {
-      label: "Call Ended",
-      value: formatDuration(recentlyEnded.duration_seconds),
-      delta: recentlyEnded.customer_name || recentlyEnded.caller_number || "Unknown Caller",
-      icon: PhoneOff,
-      color: "#f59e0b" // amber
-    };
-  } else {
-    // STATE 3: Idle — ready to answer
-    firstStat = {
-      label: "Ready to Answer",
-      value: "Online",
-      delta: "Sofia is standing by",
-      icon: CheckCircle,
-      color: "#10b981" // green
-    };
-  }
-
-  const stats = [
-    firstStat,
-    { label: "Calls Today", value: todayCalls.length.toString(), delta: `${sessions.length} total records`, icon: Phone, color: "#10b981" },
-    { label: "Appointments Booked", value: booked.length.toString(), delta: `${ended.length > 0 ? Math.round((booked.length / ended.length) * 100) : 0}% conv. rate`, icon: Users, color: "#f59e0b" },
-    { label: "Avg. Call Duration", value: formatDuration(avgDur), delta: "Sofia persona active", icon: TrendingUp, color: "#8b5cf6" },
-  ];
-
-  const recentCalls = sessions.slice(0, 5);
-
-  return (
-    <div style={{ display: "flex", height: "100vh", background: "var(--bg-base)", overflow: "hidden" }}>
-      <Sidebar />
-
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <Topbar title="Overview" subtitle="Saafi AI · Westside Auto Group" />
-
-        <main style={{ flex: 1, overflowY: "auto", padding: "24px 28px" }}>
-
-          {/* Demo Banner — shows callable phone number when live */}
-          <DemoBanner />
-
-          {/* Stats Grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 28 }}>
-            {loading && sessions.length === 0 ? (
-              /* Loading skeleton */
-              Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="card" style={{ padding: 18 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 9, background: "var(--bg-hover)", marginBottom: 14 }} />
-                  <div style={{ width: 80, height: 26, borderRadius: 6, background: "var(--bg-hover)", marginBottom: 6 }} />
-                  <div style={{ width: 60, height: 12, borderRadius: 4, background: "var(--bg-hover)", marginBottom: 6 }} />
-                  <div style={{ width: 100, height: 11, borderRadius: 4, background: "var(--bg-hover)" }} />
-                </div>
-              ))
-            ) : (
-              stats.map(stat => {
-                const Icon = stat.icon;
-                return (
-                  <div key={stat.label} className="card card-hover" style={{ padding: 18 }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                      <div
-                        style={{
-                          width: 36,
-                          height: 36,
-                          borderRadius: 9,
-                          background: `${stat.color}18`,
-                          border: `1px solid ${stat.color}30`,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <Icon size={16} color={stat.color} />
-                      </div>
-                      <ArrowUpRight size={14} color="var(--text-muted)" />
+    return (
+        <div style={{ minHeight: "100vh", backgroundColor: "#f8fafc", color: "#0f172a", fontFamily: "Inter, sans-serif", overflowX: "hidden" }}>
+            {/* Navbar */}
+            <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 40px", backgroundColor: "#ffffff", borderBottom: "1px solid #e2e8f0", position: "sticky", top: 0, zIndex: 50 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 700, fontSize: 18, color: "#1e293b" }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #2563eb, #3b82f6)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <Bot size={20} color="white" />
                     </div>
-                    <div style={{ fontSize: 26, fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.5px" }}>
-                      {stat.value}
-                    </div>
-                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{stat.label}</div>
-                    <div style={{ fontSize: 11, color: stat.color, marginTop: 6, fontWeight: 500 }}>{stat.delta}</div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          {/* Two column layout */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 14 }}>
-            {/* Recent Calls */}
-            <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-              <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>Recent Activity</span>
-                  {loading && <span className="spin" style={{ fontSize: 10, color: 'var(--text-muted)' }}>Updating...</span>}
+                    Saafi AI
                 </div>
-                <Link href="/calls" style={{ fontSize: 11, color: "var(--accent-hover)", textDecoration: "none", display: "flex", alignItems: "center", gap: 3 }}>
-                  View all logs <ArrowRight size={11} />
-                </Link>
-              </div>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                    {["Customer", "Service", "Outcome", "Time"].map(h => (
-                      <th key={h} style={{ padding: "9px 18px", textAlign: "left", fontSize: 10, fontWeight: 600, color: "var(--text-muted)", letterSpacing: "0.07em", textTransform: "uppercase" }}>
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentCalls.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-                        No recent activity recorded yet.
-                      </td>
-                    </tr>
-                  ) : (
-                    recentCalls.map((call, i) => {
-                      const outcome = outcomeFromSession(call);
-                      return (
-                        <tr
-                          key={call.call_id}
-                          style={{
-                            borderBottom: i < recentCalls.length - 1 ? "1px solid var(--border)" : "none",
-                            transition: "background 0.1s",
-                          }}
+                <div style={{ display: "flex", gap: 24, fontSize: 14, fontWeight: 500, color: "#475569" }}>
+                    <a href="#features" style={{ textDecoration: "none", color: "inherit", transition: "color 0.2s" }} onMouseOver={(e) => e.currentTarget.style.color = "#2563eb"} onMouseOut={(e) => e.currentTarget.style.color = "#475569"}>Features</a>
+                    <a href="#demo" style={{ textDecoration: "none", color: "inherit", transition: "color 0.2s" }} onMouseOver={(e) => e.currentTarget.style.color = "#2563eb"} onMouseOut={(e) => e.currentTarget.style.color = "#475569"}>Interactive Demo</a>
+                </div>
+            </nav>
+
+            {/* Hero Section */}
+            <motion.header initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} style={{ padding: "80px 10% 40px", maxWidth: 1400, margin: "0 auto" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 60, marginBottom: 80 }}>
+                    <div style={{ flex: 1 }}>
+                        <div style={{ padding: "6px 14px", backgroundColor: "#e0f2fe", color: "#0369a1", borderRadius: 999, fontSize: 12, fontWeight: 600, marginBottom: 24, display: "flex", alignItems: "center", gap: 6, width: "fit-content" }}>
+                            <Zap size={14} /> The Fastest Growing Voice AI for Dealerships
+                        </div>
+                        <h1 style={{ fontSize: 62, fontWeight: 800, lineHeight: 1.05, marginBottom: 24, color: "#0f172a", letterSpacing: "-1.5px" }}>
+                            Keep your digital doors open <span style={{ color: "#2563eb" }}>24/7.</span>
+                        </h1>
+                        <p style={{ fontSize: 18, lineHeight: 1.6, color: "#475569", marginBottom: 40, maxWidth: 500 }}>
+                            Saafi is always on, answering calls, booking appointments, and following up so no customer slips through the cracks.
+                        </p>
+                        <div style={{ display: "flex", gap: 16 }}>
+                            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} style={{ padding: "16px 32px", backgroundColor: "#2563eb", color: "white", borderRadius: 8, fontWeight: 600, fontSize: 16, border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, boxShadow: "0 10px 25px -5px rgba(37, 99, 235, 0.4)" }}>
+                                Book A Demo <ArrowRight size={18} />
+                            </motion.button>
+                        </div>
+                    </div>
+
+                    {/* Interactive Mouse Tracking Glowing Orb */}
+                    <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center", position: "relative", perspective: 1000 }}>
+                        <div style={{ position: "absolute", width: 450, height: 450, background: "radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(59,130,246,0) 70%)", borderRadius: "50%", animation: "pulse 4s infinite alternate" }} />
+
+                        <motion.div
+                            style={{ x: orbX, y: orbY, rotateX: orbRotateX, rotateY: orbRotateY, width: 280, height: 280, borderRadius: "50%", background: "linear-gradient(135deg, #1e3a8a, #3b82f6)", boxShadow: "0 20px 40px -10px rgba(37, 99, 235, 0.4), inset 0 0 40px rgba(255,255,255,0.2)", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", cursor: "pointer", position: "relative", zIndex: 1, transformStyle: "preserve-3d" }}
+                            whileHover={{ scale: 1.05, boxShadow: "0 30px 60px -15px rgba(37, 99, 235, 0.6), inset 0 0 40px rgba(255,255,255,0.3)" }}
                         >
-                          <td style={{ padding: "11px 18px", fontSize: 12, fontWeight: 500, color: "var(--text-primary)" }}>
-                            {call.customer_name ?? call.caller_number ?? "Unknown"}
-                          </td>
-                          <td style={{ padding: "11px 18px", fontSize: 12, color: "var(--text-secondary)" }}>
-                            {call.service_type ?? "General Inquiry"}
-                          </td>
-                          <td style={{ padding: "11px 18px" }}>
-                            <span
-                              style={{
-                                fontSize: 11,
-                                fontWeight: 600,
-                                color: outcome.color,
-                                background: outcome.bg,
-                                padding: "2px 8px",
-                                borderRadius: 999,
-                                border: `1px solid ${outcome.color}30`,
-                              }}
-                            >
-                              {outcome.label}
-                            </span>
-                          </td>
-                          <td style={{ padding: "11px 18px", fontSize: 11, color: "var(--text-muted)", whiteSpace: 'nowrap' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                              {call.isDemo && (
-                                <span style={{
-                                  fontSize: 8,
-                                  fontWeight: 700,
-                                  letterSpacing: "0.06em",
-                                  color: "var(--text-muted)",
-                                  background: "var(--bg-hover)",
-                                  border: "1px solid var(--border)",
-                                  borderRadius: 4,
-                                  padding: "1px 4px",
-                                }}>
-                                  DEMO
-                                </span>
-                              )}
-                              {formatTime(call.created_at)}
+                            <Bot size={72} color="white" style={{ marginBottom: 16, transform: "translateZ(30px)" }} />
+                            <span style={{ color: "white", fontWeight: 600, fontSize: 15, letterSpacing: "0.5px", transform: "translateZ(20px)" }}>Saafi</span>
+                            <div style={{ display: "flex", gap: 4, marginTop: 16, transform: "translateZ(10px)" }}>
+                                {[1, 2, 3, 4, 5, 6].map((i) => (
+                                    <motion.div key={i} animate={{ height: [12, Math.random() * 20 + 10, 12] }} transition={{ repeat: Infinity, duration: 0.5 + Math.random(), delay: Math.random() }} style={{ width: 4, backgroundColor: "rgba(255,255,255,0.7)", borderRadius: 2 }} />
+                                ))}
                             </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Quick Actions */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div className="card" style={{ padding: 18 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>Quick Actions</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <Link href="/agents" style={{ textDecoration: "none" }}>
-                    <button className="btn-primary" style={{ width: "100%", justifyContent: "center" }}>
-                      <Bot size={13} /> Open Agent Builder
-                    </button>
-                  </Link>
-                  <button className="btn-ghost" style={{ width: "100%", justifyContent: "center" }}>
-                    <Phone size={13} /> Start Test Call
-                  </button>
-                  <button className="btn-ghost" style={{ width: "100%", justifyContent: "center" }}>
-                    <Users size={13} /> Import Leads
-                  </button>
-                </div>
-              </div>
-
-              {/* Active agents status */}
-              <div className="card" style={{ padding: 18 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Agent Status</div>
-                {[
-                  { name: "Sofia", role: "Automated Service Booking", live: true },
-                ].map(agent => (
-                  <div key={agent.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <div
-                        style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: 7,
-                          background: agent.live ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "var(--bg-hover)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <Bot size={13} color={agent.live ? "white" : "var(--text-muted)"} />
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text-primary)" }}>{agent.name}</div>
-                        <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{agent.role}</div>
-                      </div>
+                        </motion.div>
                     </div>
-                    {agent.live ? (
-                      <span className="badge badge-active" style={{ fontSize: 10 }}>Live</span>
-                    ) : (
-                      <span className="badge badge-draft" style={{ fontSize: 10 }}>Draft</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </main>
-      </div>
-    </div>
-  );
+                </div>
+
+                {/* ROI Metrics Bar (Framer Motion Stagger) */}
+                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-100px" }} style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20, backgroundColor: "white", padding: 40, borderRadius: 20, border: "1px solid #e2e8f0", boxShadow: "0 10px 30px -10px rgba(0,0,0,0.05)" }}>
+                    {[
+                        { value: "$75K+", label: "Service revenue captured", icon: BarChart3, color: "#10b981" },
+                        { value: "14X", label: "Average ROI", icon: TrendingUp, color: "#3b82f6" },
+                        { value: "48", label: "Hours saved per week", icon: Clock, color: "#8b5cf6" },
+                        { value: "340+", label: "Appointments booked", icon: CalendarCheck, color: "#f59e0b" },
+                    ].map((metric, i) => (
+                        <div key={i} style={{ display: "flex", flexDirection: "column", gap: 8, padding: "0 20px", borderRight: i < 3 ? "1px solid #f1f5f9" : "none" }}>
+                            <div style={{ fontSize: 36, fontWeight: 800, color: "#0f172a", letterSpacing: "-1px" }}>{metric.value}</div>
+                            <div style={{ fontSize: 13, color: "#64748b", fontWeight: 500, lineHeight: 1.4 }}>{metric.label}</div>
+                        </div>
+                    ))}
+                </motion.div>
+            </motion.header>
+
+            {/* 3 Pillars & Interactive Demo Section */}
+            <section id="demo" style={{ backgroundColor: "#ffffff", padding: "100px 10%", borderTop: "1px solid #e2e8f0" }}>
+                <motion.div initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} style={{ textAlign: "center", marginBottom: 60 }}>
+                    <h2 style={{ fontSize: 40, fontWeight: 800, color: "#0f172a", marginBottom: 16, letterSpacing: "-1px" }}>Saafi transforms dealership communication.</h2>
+                    <p style={{ fontSize: 18, color: "#64748b", maxWidth: 600, margin: "0 auto" }}>Click below to see exactly how Saafi handles your most important calls.</p>
+                </motion.div>
+
+                <div style={{ display: "flex", gap: 60, maxWidth: 1200, margin: "0 auto", alignItems: "flex-start" }}>
+
+                    {/* Left Side: The 3 Pillars */}
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16 }}>
+                        {[
+                            { id: "receptionist", title: "Live Receptionist", desc: "Never miss a call. Answers everyday inquiries like store hours, directions, and simple questions." },
+                            { id: "scheduler", title: "AI Scheduler", desc: "Book all appointments. Real-time scheduling based on availability and customer preferences." },
+                            { id: "sales", title: "Sales AI", desc: "Capture every lead. Shares vehicle availability and books test drives instantly." }
+                        ].map((pillar) => (
+                            <motion.div
+                                key={pillar.id}
+                                onClick={() => setActiveTab(pillar.id as any)}
+                                whileHover={{ y: -5, boxShadow: "0 15px 30px -10px rgba(0,0,0,0.1)" }}
+                                style={{ padding: 32, borderRadius: 16, border: activeTab === pillar.id ? "2px solid #2563eb" : "1px solid #e2e8f0", backgroundColor: activeTab === pillar.id ? "#eff6ff" : "#ffffff", cursor: "pointer", transition: "border 0.2s ease, background 0.2s ease" }}
+                            >
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                                    <h3 style={{ fontSize: 22, fontWeight: 700, color: activeTab === pillar.id ? "#1d4ed8" : "#0f172a" }}>{pillar.title}</h3>
+                                    {activeTab === pillar.id && <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}><CheckCircle2 size={24} color="#2563eb" /></motion.div>}
+                                </div>
+                                <p style={{ fontSize: 15, color: activeTab === pillar.id ? "#1e3a8a" : "#64748b", lineHeight: 1.6 }}>{pillar.desc}</p>
+                            </motion.div>
+                        ))}
+                    </div>
+
+                    {/* Right Side: Interactive Chat Mockup with Typing Emulator */}
+                    <motion.div initial={{ opacity: 0, x: 50 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} style={{ flex: 1, backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 24, padding: 32, boxShadow: "0 20px 40px -15px rgba(0,0,0,0.05)", position: "relative", overflow: "hidden" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 32, borderBottom: "1px solid #e2e8f0", paddingBottom: 20 }}>
+                            <div style={{ width: 44, height: 44, borderRadius: "50%", background: "linear-gradient(135deg, #1e3a8a, #3b82f6)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                <Bot size={24} color="white" />
+                            </div>
+                            <div>
+                                <div style={{ fontSize: 16, fontWeight: 700, color: "#0f172a" }}>Listen to Saafi</div>
+                                <div style={{ fontSize: 13, color: "#2563eb", fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
+                                    <motion.span animate={{ opacity: [1, 0.5, 1] }} transition={{ repeat: Infinity, duration: 1.5 }} style={{ width: 8, height: 8, backgroundColor: "#2563eb", borderRadius: "50%", display: "inline-block" }} />
+                                    {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Module active
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ display: "flex", flexDirection: "column", gap: 20, minHeight: 320 }}>
+                            {conversations[activeTab].slice(0, visibleMessages).map((msg, idx) => (
+                                <motion.div key={idx} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }}>
+                                    <div style={{
+                                        maxWidth: "80%", padding: "14px 20px", borderRadius: 16, fontSize: 15, lineHeight: 1.5,
+                                        backgroundColor: msg.role === "user" ? "#0f172a" : "#ffffff", color: msg.role === "user" ? "#ffffff" : "#334155",
+                                        border: msg.role === "ai" ? "1px solid #e2e8f0" : "none", borderBottomRightRadius: msg.role === "user" ? 4 : 16, borderBottomLeftRadius: msg.role === "ai" ? 4 : 16,
+                                        boxShadow: msg.role === "ai" ? "0 4px 6px -1px rgba(0,0,0,0.05)" : "none"
+                                    }}>
+                                        <TypingMessage text={msg.text} isAi={msg.role === "ai"} />
+                                    </div>
+                                </motion.div>
+                            ))}
+                            {/* Show typing indicator if next message isn't ready but hasn't reached end */}
+                            {visibleMessages < conversations[activeTab].length && conversations[activeTab][visibleMessages].role === "ai" && (
+                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: "flex", justifyContent: "flex-start" }}>
+                                    <div style={{ padding: "14px 20px", borderRadius: 16, backgroundColor: "#ffffff", border: "1px solid #e2e8f0", display: "flex", gap: 4, alignItems: "center" }}>
+                                        <motion.span animate={{ y: [0, -4, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0 }} style={{ width: 6, height: 6, backgroundColor: "#cbd5e1", borderRadius: "50%" }} />
+                                        <motion.span animate={{ y: [0, -4, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }} style={{ width: 6, height: 6, backgroundColor: "#cbd5e1", borderRadius: "50%" }} />
+                                        <motion.span animate={{ y: [0, -4, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }} style={{ width: 6, height: 6, backgroundColor: "#cbd5e1", borderRadius: "50%" }} />
+                                    </div>
+                                </motion.div>
+                            )}
+                        </div>
+                    </motion.div>
+
+                </div>
+            </section>
+
+            {/* Trust & Security */}
+            <section style={{ backgroundColor: "#0f172a", color: "white", padding: "80px 10%", textAlign: "center" }}>
+                <motion.div initial={{ scale: 0.8, opacity: 0 }} whileInView={{ scale: 1, opacity: 1 }} viewport={{ once: true }}>
+                    <ShieldCheck size={48} color="#3b82f6" style={{ marginBottom: 24, margin: "0 auto" }} />
+                    <h2 style={{ fontSize: 32, fontWeight: 700, marginBottom: 16 }}>Integrates With the Systems Dealers Rely On</h2>
+                    <p style={{ fontSize: 16, color: "#94a3b8", maxWidth: 600, margin: "0 auto" }}>Saafi AI connects directly to your existing CRM and service schedulers, syncing data across your entire dealership automatically.</p>
+                </motion.div>
+            </section>
+
+            {/* Footer & Admin Login */}
+            <footer style={{ backgroundColor: "#ffffff", borderTop: "1px solid #e2e8f0", padding: "60px 10%", display: "flex", flexDirection: "column", alignItems: "center", gap: 40 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 700, fontSize: 16, color: "#64748b" }}>
+                    <Bot size={18} color="#64748b" /> Saafi AI
+                </div>
+
+                <div style={{ color: "#94a3b8", fontSize: 14 }}>
+                    © 2026 Saafi AI. All rights reserved.
+                </div>
+
+                {/* Admin Login Button */}
+                <div style={{ marginTop: 20, paddingTop: 20, borderTop: "1px solid #f1f5f9", width: "100%", textAlign: "center" }}>
+                    <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 12 }}>Staff & Administration</p>
+
+                    <SignedOut>
+                        <SignInButton mode="modal" fallbackRedirectUrl="/dashboard">
+                            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} style={{ padding: "8px 16px", backgroundColor: "transparent", color: "#475569", borderRadius: 6, fontWeight: 500, fontSize: 13, border: "1px solid #cbd5e1", cursor: "pointer", transition: "background 0.2s" }} onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "#f1f5f9" }} onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "transparent" }}>Admin Login</motion.button>
+                        </SignInButton>
+                    </SignedOut>
+
+                    <SignedIn>
+                        <Link href="/dashboard" style={{ textDecoration: "none" }}>
+                            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} style={{ padding: "8px 16px", backgroundColor: "#0f172a", color: "white", borderRadius: 6, fontWeight: 500, fontSize: 13, border: "none", cursor: "pointer" }}>Go to Dashboard</motion.button>
+                        </Link>
+                    </SignedIn>
+                </div>
+            </footer>
+
+            {/* Global Style for Keyframes */}
+            <style>{`
+        @keyframes pulse {
+          0% { transform: scale(0.95); opacity: 0.5; }
+          100% { transform: scale(1.05); opacity: 0.8; }
+        }
+      `}</style>
+        </div>
+    );
 }

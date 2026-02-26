@@ -7,6 +7,13 @@ An AI voice agent platform for automating dealership calls — service schedulin
 - **Frontend**: Next.js 16 (App Router) + Tailwind CSS
 - **DB**: PostgreSQL + Redis (Upstash)
 
+## Screenshots
+### Landing Page
+![Saafi AI Landing Page](frontend/public/landing.png)
+
+### Admin Dashboard
+![Saafi AI Admin Dashboard](frontend/public/dashboard.png)
+
 ## Getting Started
 
 ### Backend

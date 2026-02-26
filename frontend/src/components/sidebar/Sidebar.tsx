@@ -8,17 +8,17 @@ import {
 } from "lucide-react";
 
 const navItems = [
-    { icon: LayoutDashboard, label: "Overview", href: "/" },
-    { icon: Bot, label: "Agent Builder", href: "/agents" },
-    { icon: Phone, label: "Call Logs", href: "/calls" },
-    { icon: Users, label: "Campaigns", href: "/campaigns" },
-    { icon: BarChart3, label: "Analytics", href: "/analytics" },
-    { icon: Activity, label: "Status", href: "/status" },
+    { icon: LayoutDashboard, label: "Overview", href: "/dashboard" },
+    { icon: Bot, label: "Agent Builder", href: "/dashboard/agents" },
+    { icon: Phone, label: "Call Logs", href: "/dashboard/calls" },
+    { icon: Users, label: "Campaigns", href: "/dashboard/campaigns" },
+    { icon: BarChart3, label: "Analytics", href: "/dashboard/analytics" },
+    { icon: Activity, label: "Status", href: "/dashboard/status" },
 ];
 
 const bottomItems = [
-    { icon: Zap, label: "Integrations", href: "/integrations" },
-    { icon: Settings, label: "Settings", href: "/settings" },
+    { icon: Zap, label: "Integrations", href: "/dashboard/integrations" },
+    { icon: Settings, label: "Settings", href: "/dashboard/settings" },
 ];
 
 export default function Sidebar() {
@@ -88,7 +88,7 @@ export default function Sidebar() {
                     Platform
                 </div>
                 {navItems.map(({ icon: Icon, label, href }) => {
-                    const active = pathname === href || (href !== "/" && pathname.startsWith(href));
+                    const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
                     return (
                         <Link key={href} href={href} style={{ textDecoration: "none" }}>
                             <div
