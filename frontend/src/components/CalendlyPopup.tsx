@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { PopupModal } from "react-calendly";
 
 interface CalendlyPopupProps {
@@ -10,13 +9,7 @@ interface CalendlyPopupProps {
 }
 
 export default function CalendlyPopup({ url, isOpen, onClose }: CalendlyPopupProps) {
-    const [mounted, setMounted] = useState(false);
-
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-
-    if (!mounted || !isOpen) return null;
+    if (!isOpen) return null;
 
     return (
         <PopupModal
