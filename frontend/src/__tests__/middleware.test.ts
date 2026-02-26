@@ -1,5 +1,5 @@
 import middleware from "../middleware";
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { createRouteMatcher } from "@clerk/nextjs/server";
 
 // Mock @clerk/nextjs/server
 jest.mock("@clerk/nextjs/server", () => {
@@ -12,6 +12,7 @@ jest.mock("@clerk/nextjs/server", () => {
 
 describe("Clerk Middleware", () => {
     let mockProtect: jest.Mock;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let mockAuth: any;
 
     beforeEach(() => {
@@ -21,13 +22,14 @@ describe("Clerk Middleware", () => {
     });
 
     it("should protect /dashboard routes", async () => {
-        const { createRouteMatcher } = require("@clerk/nextjs/server");
-        const mockMatcher = createRouteMatcher();
+        const mockMatcher = createRouteMatcher(["/dashboard(.*)"]) as unknown as jest.Mock;
         mockMatcher.mockReturnValue(true); // Simulate a protected route match
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const req = { url: "http://localhost/dashboard", nextUrl: { pathname: "/dashboard" } } as any;
 
         // Since we mocked clerkMiddleware to return its argument, middleware is the handler itself
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await (middleware as any)(mockAuth, req);
 
         expect(mockMatcher).toHaveBeenCalledWith(req);
@@ -35,12 +37,13 @@ describe("Clerk Middleware", () => {
     });
 
     it("should allow public routes and not call protect", async () => {
-        const { createRouteMatcher } = require("@clerk/nextjs/server");
-        const mockMatcher = createRouteMatcher();
+        const mockMatcher = createRouteMatcher(["/dashboard(.*)"]) as unknown as jest.Mock;
         mockMatcher.mockReturnValue(false); // Simulate a public route match
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const req = { url: "http://localhost/some-public-path", nextUrl: { pathname: "/some-public-path" } } as any;
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await (middleware as any)(mockAuth, req);
 
         expect(mockMatcher).toHaveBeenCalledWith(req);

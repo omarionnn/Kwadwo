@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { SignInButton, SignedIn, SignedOut } from "@clerk/nextjs";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
-import { Bot, CalendarCheck, UserPlus, Moon, ArrowRight, ShieldCheck, Zap, MessageSquare, BarChart3, Clock, CheckCircle2, TrendingUp } from "lucide-react";
+import { Bot, CalendarCheck, ArrowRight, ShieldCheck, Zap, BarChart3, Clock, CheckCircle2, TrendingUp } from "lucide-react";
 
 // Mock conversation data for the interactive chat
 const conversations = {
@@ -184,7 +184,7 @@ export default function LandingPage() {
                         ].map((pillar) => (
                             <motion.div
                                 key={pillar.id}
-                                onClick={() => setActiveTab(pillar.id as any)}
+                                onClick={() => setActiveTab(pillar.id as "receptionist" | "scheduler" | "sales")}
                                 whileHover={{ y: -5, boxShadow: "0 15px 30px -10px rgba(0,0,0,0.1)" }}
                                 style={{ padding: 32, borderRadius: 16, border: activeTab === pillar.id ? "2px solid #2563eb" : "1px solid #e2e8f0", backgroundColor: activeTab === pillar.id ? "#eff6ff" : "#ffffff", cursor: "pointer", transition: "border 0.2s ease, background 0.2s ease" }}
                             >
