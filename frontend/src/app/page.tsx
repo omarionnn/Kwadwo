@@ -60,6 +60,7 @@ export default function LandingPage() {
     const [activeTab, setActiveTab] = useState<"receptionist" | "scheduler" | "sales">("scheduler");
     const [visibleMessages, setVisibleMessages] = useState<number>(0);
     const [callStatus, setCallStatus] = useState<"inactive" | "loading" | "active">("inactive");
+    const [isOrbHovered, setIsOrbHovered] = useState(false);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const vapiRef = useRef<any>(null);
 
@@ -188,29 +189,29 @@ export default function LandingPage() {
                     <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center", position: "relative", perspective: 1000 }}>
                         <div style={{ position: "absolute", width: 450, height: 450, background: "radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(59,130,246,0) 70%)", borderRadius: "50%", animation: "pulse 4s infinite alternate" }} />
 
-                        {/* Speech Tooltip */}
-                        <motion.div
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 1, duration: 0.5 }}
-                            style={{ position: "absolute", left: -80, top: "20%", backgroundColor: "white", padding: "10px 16px", borderRadius: 12, boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)", display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, color: "#1e293b", zIndex: 10 }}
-                        >
-                            {callStatus === "inactive" && <><Mic size={16} color="#2563eb" /> Click to talk to Saafi</>}
-                            {callStatus === "loading" && <><Loader2 size={16} color="#2563eb" className="animate-spin" /> Connecting...</>}
-                            {callStatus === "active" && <><MicOff size={16} color="#ef4444" /> Click to end call</>}
-                        </motion.div>
-
                         <motion.div
                             onClick={toggleCall}
+                            onMouseEnter={() => setIsOrbHovered(true)}
+                            onMouseLeave={() => setIsOrbHovered(false)}
                             style={{ x: orbX, y: orbY, rotateX: orbRotateX, rotateY: orbRotateY, width: 280, height: 280, borderRadius: "50%", background: callStatus === "active" ? "linear-gradient(135deg, #4f46e5, #ec4899)" : "linear-gradient(135deg, #1e3a8a, #3b82f6)", boxShadow: callStatus === "active" ? "0 20px 60px -10px rgba(236, 72, 153, 0.6), inset 0 0 60px rgba(255,255,255,0.4)" : "0 20px 40px -10px rgba(37, 99, 235, 0.4), inset 0 0 40px rgba(255,255,255,0.2)", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", cursor: "pointer", position: "relative", zIndex: 1, transformStyle: "preserve-3d" }}
                             whileHover={{ scale: 1.05, boxShadow: callStatus === "active" ? "0 30px 80px -15px rgba(236, 72, 153, 0.8), inset 0 0 60px rgba(255,255,255,0.5)" : "0 30px 60px -15px rgba(37, 99, 235, 0.6), inset 0 0 40px rgba(255,255,255,0.3)" }}
                         >
                             {callStatus === "loading" ? (
-                                <Loader2 size={72} color="white" style={{ marginBottom: 16, transform: "translateZ(30px)" }} className="animate-spin" />
+                                <>
+                                    <Loader2 size={72} color="white" style={{ marginBottom: 16, transform: "translateZ(30px)" }} className="animate-spin" />
+                                    <span style={{ color: "white", fontWeight: 600, fontSize: 15, letterSpacing: "0.5px", transform: "translateZ(20px)" }}>Connecting...</span>
+                                </>
+                            ) : callStatus === "active" ? (
+                                <>
+                                    {isOrbHovered ? <MicOff size={72} color="white" style={{ marginBottom: 16, transform: "translateZ(30px)" }} /> : <Mic size={72} color="white" style={{ marginBottom: 16, transform: "translateZ(30px)" }} />}
+                                    <span style={{ color: "white", fontWeight: 600, fontSize: 15, letterSpacing: "0.5px", transform: "translateZ(20px)" }}>{isOrbHovered ? "End Call" : "Live"}</span>
+                                </>
                             ) : (
-                                <Bot size={72} color="white" style={{ marginBottom: 16, transform: "translateZ(30px)" }} />
+                                <>
+                                    {isOrbHovered ? <Mic size={72} color="white" style={{ marginBottom: 16, transform: "translateZ(30px)" }} /> : <Bot size={72} color="white" style={{ marginBottom: 16, transform: "translateZ(30px)" }} />}
+                                    <span style={{ color: "white", fontWeight: 600, fontSize: 13, letterSpacing: "0.5px", transform: "translateZ(20px)" }}>{isOrbHovered ? "Click to talk to Saafi" : "Saafi"}</span>
+                                </>
                             )}
-                            <span style={{ color: "white", fontWeight: 600, fontSize: 15, letterSpacing: "0.5px", transform: "translateZ(20px)" }}>Saafi</span>
                             <div style={{ display: "flex", gap: 4, marginTop: 16, transform: "translateZ(10px)" }}>
                                 {[1, 2, 3, 4, 5, 6].map((i) => (
                                     <motion.div
