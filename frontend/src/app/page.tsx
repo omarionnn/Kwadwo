@@ -7,6 +7,11 @@ import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { Bot, CalendarCheck, ArrowRight, Zap, BarChart3, Clock, CheckCircle2, TrendingUp, Mic, MicOff, Loader2 } from "lucide-react";
 import Vapi from "@vapi-ai/web";
 import IntegrationsSection from "@/components/landing/IntegrationsSection";
+import dynamic from "next/dynamic";
+
+const ClientCalendlyPopup = dynamic(() => import("@/components/CalendlyPopup"), {
+    ssr: false,
+});
 
 // Mock conversation data for the interactive chat
 const conversations = {
@@ -61,6 +66,7 @@ export default function LandingPage() {
     const [visibleMessages, setVisibleMessages] = useState<number>(0);
     const [callStatus, setCallStatus] = useState<"inactive" | "loading" | "active">("inactive");
     const [isOrbHovered, setIsOrbHovered] = useState(false);
+    const [isCalendlyOpen, setIsCalendlyOpen] = useState(false);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const vapiRef = useRef<any>(null);
 
@@ -179,7 +185,7 @@ export default function LandingPage() {
                             Saafi is always on, answering calls, booking appointments, and following up so no customer slips through the cracks.
                         </p>
                         <div style={{ display: "flex", gap: 16 }}>
-                            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} style={{ padding: "16px 32px", backgroundColor: "#2563eb", color: "white", borderRadius: 8, fontWeight: 600, fontSize: 16, border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, boxShadow: "0 10px 25px -5px rgba(37, 99, 235, 0.4)" }}>
+                            <motion.button onClick={() => setIsCalendlyOpen(true)} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} style={{ padding: "16px 32px", backgroundColor: "#2563eb", color: "white", borderRadius: 8, fontWeight: 600, fontSize: 16, border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, boxShadow: "0 10px 25px -5px rgba(37, 99, 235, 0.4)" }}>
                                 Book A Demo <ArrowRight size={18} />
                             </motion.button>
                         </div>
@@ -357,6 +363,13 @@ export default function LandingPage() {
           100% { transform: scale(1.05); opacity: 0.8; }
         }
       `}</style>
+
+            {/* Calendly Popup Modal */}
+            <ClientCalendlyPopup
+                url="https://calendly.com/omariij16"
+                isOpen={isCalendlyOpen}
+                onClose={() => setIsCalendlyOpen(false)}
+            />
         </div>
     );
 }

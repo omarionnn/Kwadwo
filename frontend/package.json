@@ -19,6 +19,7 @@
     "next": "16.1.6",
     "node-fetch": "^3.3.2",
     "react": "19.2.3",
+    "react-calendly": "^4.4.0",
     "react-dom": "19.2.3",
     "svgo": "^4.0.0",
     "tailwind-merge": "^3.5.0"
