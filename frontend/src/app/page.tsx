@@ -166,7 +166,6 @@ export default function LandingPage() {
                     Saafi AI
                 </div>
                 <div style={{ display: "flex", gap: 24, fontSize: 14, fontWeight: 500, color: "#475569" }}>
-                    <a href="#features" style={{ textDecoration: "none", color: "inherit", transition: "color 0.2s" }} onMouseOver={(e) => e.currentTarget.style.color = "#2563eb"} onMouseOut={(e) => e.currentTarget.style.color = "#475569"}>Features</a>
                     <a href="#demo" style={{ textDecoration: "none", color: "inherit", transition: "color 0.2s" }} onMouseOver={(e) => e.currentTarget.style.color = "#2563eb"} onMouseOut={(e) => e.currentTarget.style.color = "#475569"}>Interactive Demo</a>
                 </div>
             </nav>
