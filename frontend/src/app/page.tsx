@@ -232,20 +232,7 @@ export default function LandingPage() {
                     </div>
                 </div>
 
-                {/* ROI Metrics Bar (Framer Motion Stagger) */}
-                <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-100px" }} style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20, backgroundColor: "white", padding: 40, borderRadius: 20, border: "1px solid #e2e8f0", boxShadow: "0 10px 30px -10px rgba(0,0,0,0.05)" }}>
-                    {[
-                        { value: "$75K+", label: "Service revenue captured", icon: BarChart3, color: "#10b981" },
-                        { value: "14X", label: "Average ROI", icon: TrendingUp, color: "#3b82f6" },
-                        { value: "48", label: "Hours saved per week", icon: Clock, color: "#8b5cf6" },
-                        { value: "340+", label: "Appointments booked", icon: CalendarCheck, color: "#f59e0b" },
-                    ].map((metric, i) => (
-                        <div key={i} style={{ display: "flex", flexDirection: "column", gap: 8, padding: "0 20px", borderRight: i < 3 ? "1px solid #f1f5f9" : "none" }}>
-                            <div style={{ fontSize: 36, fontWeight: 800, color: "#0f172a", letterSpacing: "-1px" }}>{metric.value}</div>
-                            <div style={{ fontSize: 13, color: "#64748b", fontWeight: 500, lineHeight: 1.4 }}>{metric.label}</div>
-                        </div>
-                    ))}
-                </motion.div>
+
             </motion.header>
 
             {/* Integrations Marquee Section */}
