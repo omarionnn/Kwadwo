@@ -87,7 +87,7 @@ export default function SaafiDefinition() {
                         letterSpacing: "-2px",
                         lineHeight: 1
                     }}>
-                        'Saafi'
+                        &apos;Saafi&apos;
                     </h2>
 
                     <p style={{
@@ -97,7 +97,7 @@ export default function SaafiDefinition() {
                         fontWeight: 400,
                         margin: 0
                     }}>
-                        <strong style={{ fontWeight: 700, color: "#0f172a" }}>(verb.)</strong> The process of intelligently automating customer interactions and seamlessly connecting your dealership's CRM and DMS.
+                        <strong style={{ fontWeight: 700, color: "#0f172a" }}>(verb.)</strong> The process of intelligently automating customer interactions and seamlessly connecting your dealership&apos;s CRM and DMS.
                     </p>
                 </motion.div>
             </motion.div>
