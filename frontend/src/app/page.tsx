@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { SignInButton, SignedIn, SignedOut } from "@clerk/nextjs";
-import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
-import { Bot, ArrowRight, Zap, CheckCircle2, Mic, MicOff, Loader2 } from "lucide-react";
+import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from "framer-motion";
+import { Bot, ArrowRight, Zap, CheckCircle2, Mic, MicOff, Loader2, X } from "lucide-react";
 import Vapi from "@vapi-ai/web";
 import IntegrationsSection from "@/components/landing/IntegrationsSection";
 import SaafiDefinition from "@/components/landing/SaafiDefinition";
@@ -68,6 +68,7 @@ export default function LandingPage() {
     const [callStatus, setCallStatus] = useState<"inactive" | "loading" | "active">("inactive");
     const [isOrbHovered, setIsOrbHovered] = useState(false);
     const [isCalendlyOpen, setIsCalendlyOpen] = useState(false);
+    const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const vapiRef = useRef<any>(null);
 
@@ -172,19 +173,19 @@ export default function LandingPage() {
             </nav>
 
             {/* Hero Section */}
-            <motion.header initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} style={{ padding: "80px 10% 40px", maxWidth: 1400, margin: "0 auto" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 60, marginBottom: 80 }}>
-                    <div style={{ flex: 1 }}>
-                        <div style={{ padding: "6px 14px", backgroundColor: "#e0f2fe", color: "#0369a1", borderRadius: 999, fontSize: 12, fontWeight: 600, marginBottom: 24, display: "flex", alignItems: "center", gap: 6, width: "fit-content" }}>
+            <motion.header initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} style={{ padding: "80px 10% 40px", maxWidth: 1400, margin: "0 auto" }} className="max-md:!pt-[15%] max-md:!px-[5%] max-md:!pb-10 max-md:!min-h-[90vh] max-md:!flex max-md:!items-center overflow-hidden md:overflow-visible">
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 60, marginBottom: 80 }} className="max-md:!flex-col max-md:!gap-12 max-md:!mb-20 w-full">
+                    <div style={{ flex: 1 }} className="max-md:!flex max-md:!flex-col max-md:!items-center max-md:!text-center z-10 relative pt-6 max-md:pt-0 w-full">
+                        <div style={{ padding: "6px 14px", backgroundColor: "#e0f2fe", color: "#0369a1", borderRadius: 999, fontSize: 12, fontWeight: 600, marginBottom: 24, display: "flex", alignItems: "center", gap: 6, width: "fit-content" }} className="max-md:!mb-10 max-md:!px-3 max-md:!py-1.5 max-md:!text-[11px] max-md:!mx-auto">
                             <Zap size={14} /> The Fastest Growing Voice AI for Dealerships
                         </div>
-                        <h1 style={{ fontSize: 62, fontWeight: 800, lineHeight: 1.05, marginBottom: 24, color: "#0f172a", letterSpacing: "-1.5px" }}>
+                        <h1 style={{ fontSize: 62, fontWeight: 800, lineHeight: 1.05, marginBottom: 24, color: "#0f172a", letterSpacing: "-1.5px" }} className="max-md:!text-[42px] max-md:!mb-10">
                             Keep your digital doors open <span style={{ color: "#2563eb" }}>24/7.</span>
                         </h1>
-                        <p style={{ fontSize: 18, lineHeight: 1.6, color: "#475569", marginBottom: 40, maxWidth: 500 }}>
+                        <p style={{ fontSize: 18, lineHeight: 1.6, color: "#475569", marginBottom: 40, maxWidth: 500 }} className="max-md:!text-base max-md:!mb-14 max-md:!mx-auto">
                             Saafi is always on, answering calls, booking appointments, and following up so no customer slips through the cracks.
                         </p>
-                        <div style={{ display: "flex", gap: 16 }}>
+                        <div className="flex justify-center md:justify-start gap-4">
                             <motion.button onClick={() => setIsCalendlyOpen(true)} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} style={{ padding: "16px 32px", backgroundColor: "#2563eb", color: "white", borderRadius: 8, fontWeight: 600, fontSize: 16, border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, boxShadow: "0 10px 25px -5px rgba(37, 99, 235, 0.4)" }}>
                                 Book A Demo <ArrowRight size={18} />
                             </motion.button>
@@ -192,7 +193,7 @@ export default function LandingPage() {
                     </div>
 
                     {/* Interactive Mouse Tracking Glowing Orb */}
-                    <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center", position: "relative", perspective: 1000 }}>
+                    <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center", position: "relative", perspective: 1000 }} className="max-md:!w-full max-md:!mt-10">
                         <div style={{ position: "absolute", width: 450, height: 450, background: "radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(59,130,246,0) 70%)", borderRadius: "50%", animation: "pulse 4s infinite alternate" }} />
 
                         <motion.div
@@ -242,13 +243,13 @@ export default function LandingPage() {
             <IntegrationsSection />
 
             {/* 3 Pillars & Interactive Demo Section */}
-            <section id="demo" style={{ backgroundColor: "#ffffff", padding: "100px 10%", borderTop: "1px solid #e2e8f0" }}>
-                <motion.div initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} style={{ textAlign: "center", marginBottom: 60 }}>
-                    <h2 style={{ fontSize: 40, fontWeight: 800, color: "#0f172a", marginBottom: 16, letterSpacing: "-1px" }}>Saafi transforms dealership communication.</h2>
-                    <p style={{ fontSize: 18, color: "#64748b", maxWidth: 600, margin: "0 auto" }}>Click below to see exactly how Saafi handles your most important calls.</p>
+            <section id="demo" style={{ backgroundColor: "#ffffff", padding: "100px 10%", borderTop: "1px solid #e2e8f0" }} className="max-md:!px-[5%] max-md:!py-16">
+                <motion.div initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} style={{ textAlign: "center", marginBottom: 60 }} className="max-md:!mb-10">
+                    <h2 style={{ fontSize: 40, fontWeight: 800, color: "#0f172a", marginBottom: 16, letterSpacing: "-1px" }} className="max-md:!text-[32px]">Saafi transforms dealership communication.</h2>
+                    <p style={{ fontSize: 18, color: "#64748b", maxWidth: 600, margin: "0 auto" }} className="max-md:!text-base">Click below to see exactly how Saafi handles your most important calls.</p>
                 </motion.div>
 
-                <div style={{ display: "flex", gap: 60, maxWidth: 1200, margin: "0 auto", alignItems: "flex-start" }}>
+                <div style={{ display: "flex", gap: 60, maxWidth: 1200, margin: "0 auto", alignItems: "flex-start" }} className="max-md:!flex-col max-md:!gap-8">
 
                     {/* Left Side: The 3 Pillars */}
                     <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16 }}>
@@ -259,7 +260,10 @@ export default function LandingPage() {
                         ].map((pillar) => (
                             <motion.div
                                 key={pillar.id}
-                                onClick={() => setActiveTab(pillar.id as "receptionist" | "scheduler" | "sales")}
+                                onClick={() => {
+                                    setActiveTab(pillar.id as "receptionist" | "scheduler" | "sales");
+                                    if (window.innerWidth < 768) setIsMobileChatOpen(true);
+                                }}
                                 whileHover={{ y: -5, boxShadow: "0 15px 30px -10px rgba(0,0,0,0.1)" }}
                                 style={{ padding: 32, borderRadius: 16, border: activeTab === pillar.id ? "2px solid #2563eb" : "1px solid #e2e8f0", backgroundColor: activeTab === pillar.id ? "#eff6ff" : "#ffffff", cursor: "pointer", transition: "border 0.2s ease, background 0.2s ease" }}
                             >
@@ -273,7 +277,7 @@ export default function LandingPage() {
                     </div>
 
                     {/* Right Side: Interactive Chat Mockup with Typing Emulator */}
-                    <motion.div initial={{ opacity: 0, x: 50 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} style={{ flex: 1, backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 24, padding: 32, boxShadow: "0 20px 40px -15px rgba(0,0,0,0.05)", position: "relative", overflow: "hidden" }}>
+                    <motion.div initial={{ opacity: 0, x: 50 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} style={{ flex: 1, backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 24, padding: 32, boxShadow: "0 20px 40px -15px rgba(0,0,0,0.05)", position: "relative", overflow: "hidden" }} className="max-md:!hidden max-md:!w-full">
                         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 32, borderBottom: "1px solid #e2e8f0", paddingBottom: 20 }}>
                             <div style={{ width: 44, height: 44, borderRadius: "50%", background: "linear-gradient(135deg, #1e3a8a, #3b82f6)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                                 <Bot size={24} color="white" />
@@ -360,6 +364,55 @@ export default function LandingPage() {
                 isOpen={isCalendlyOpen}
                 onClose={() => setIsCalendlyOpen(false)}
             />
+
+            {/* Mobile Chat Interface (Modal/Bottom Sheet) */}
+            <AnimatePresence>
+                {isMobileChatOpen && (
+                    <motion.div
+                        initial={{ opacity: 0, y: "100%" }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: "100%" }}
+                        transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                        className="fixed inset-0 z-[100] bg-white md:hidden flex flex-col"
+                    >
+                        <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white shadow-sm z-10">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1e3a8a] to-[#3b82f6] flex items-center justify-center">
+                                    <Bot size={20} color="white" />
+                                </div>
+                                <div>
+                                    <div className="font-bold text-[#0f172a] text-sm">Saafi AI Demo</div>
+                                    <div className="text-xs text-[#2563eb] font-medium flex items-center gap-1.5">
+                                        <motion.span animate={{ opacity: [1, 0.5, 1] }} transition={{ repeat: Infinity, duration: 1.5 }} className="w-1.5 h-1.5 bg-[#2563eb] rounded-full inline-block" />
+                                        {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Module active
+                                    </div>
+                                </div>
+                            </div>
+                            <button onClick={() => setIsMobileChatOpen(false)} className="p-2 bg-slate-100 rounded-full text-slate-600 active:bg-slate-200 transition-colors">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-4 bg-[#f8fafc] flex flex-col gap-4">
+                            {conversations[activeTab].slice(0, visibleMessages).map((msg, idx) => (
+                                <motion.div key={idx} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                                    <div className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-[1.5] ${msg.role === "user" ? "bg-[#0f172a] text-[#ffffff] rounded-br-[4px]" : "bg-[#ffffff] text-[#334155] border border-[#e2e8f0] rounded-bl-[4px] shadow-sm"}`}>
+                                        <TypingMessage text={msg.text} isAi={msg.role === "ai"} />
+                                    </div>
+                                </motion.div>
+                            ))}
+                            {visibleMessages < conversations[activeTab].length && conversations[activeTab][visibleMessages].role === "ai" && (
+                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
+                                    <div className="px-4 py-3 rounded-2xl bg-[#ffffff] border border-[#e2e8f0] flex items-center gap-1">
+                                        {[0, 0.2, 0.4].map((delay, i) => (
+                                            <motion.span key={i} animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay }} className="w-1.5 h-1.5 bg-[#cbd5e1] rounded-full" />
+                                        ))}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Sidebar from "@/components/sidebar/Sidebar";
+
 import Topbar from "@/components/sidebar/Topbar";
 import DemoBanner from "@/components/DemoBanner";
 import { Bot, Phone, Users, TrendingUp, ArrowUpRight, ArrowRight, CheckCircle, PhoneOff } from "lucide-react";
@@ -127,76 +127,74 @@ export default function OverviewPage() {
   const recentCalls = sessions.slice(0, 5);
 
   return (
-    <div style={{ display: "flex", height: "100vh", background: "var(--bg-base)", overflow: "hidden" }}>
-      <Sidebar />
+    <>
+      <Topbar title="Overview" subtitle="Saafi AI · Westside Auto Group" />
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <Topbar title="Overview" subtitle="Saafi AI · Westside Auto Group" />
+      <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-7">
 
-        <main style={{ flex: 1, overflowY: "auto", padding: "24px 28px" }}>
+        {/* Demo Banner — shows callable phone number when live */}
+        <DemoBanner />
 
-          {/* Demo Banner — shows callable phone number when live */}
-          <DemoBanner />
-
-          {/* Stats Grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 28 }}>
-            {loading && sessions.length === 0 ? (
-              /* Loading skeleton */
-              Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="card" style={{ padding: 18 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 9, background: "var(--bg-hover)", marginBottom: 14 }} />
-                  <div style={{ width: 80, height: 26, borderRadius: 6, background: "var(--bg-hover)", marginBottom: 6 }} />
-                  <div style={{ width: 60, height: 12, borderRadius: 4, background: "var(--bg-hover)", marginBottom: 6 }} />
-                  <div style={{ width: 100, height: 11, borderRadius: 4, background: "var(--bg-hover)" }} />
-                </div>
-              ))
-            ) : (
-              stats.map(stat => {
-                const Icon = stat.icon;
-                return (
-                  <div key={stat.label} className="card card-hover" style={{ padding: 18 }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                      <div
-                        style={{
-                          width: 36,
-                          height: 36,
-                          borderRadius: 9,
-                          background: `${stat.color}18`,
-                          border: `1px solid ${stat.color}30`,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <Icon size={16} color={stat.color} />
-                      </div>
-                      <ArrowUpRight size={14} color="var(--text-muted)" />
-                    </div>
-                    <div style={{ fontSize: 26, fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.5px" }}>
-                      {stat.value}
-                    </div>
-                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{stat.label}</div>
-                    <div style={{ fontSize: 11, color: stat.color, marginTop: 6, fontWeight: 500 }}>{stat.delta}</div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          {/* Two column layout */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 14 }}>
-            {/* Recent Calls */}
-            <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-              <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>Recent Activity</span>
-                  {loading && <span className="spin" style={{ fontSize: 10, color: 'var(--text-muted)' }}>Updating...</span>}
-                </div>
-                <Link href="/dashboard/calls" style={{ fontSize: 11, color: "var(--accent-hover)", textDecoration: "none", display: "flex", alignItems: "center", gap: 3 }}>
-                  View all logs <ArrowRight size={11} />
-                </Link>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
+          {loading && sessions.length === 0 ? (
+            /* Loading skeleton */
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="card" style={{ padding: 18 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 9, background: "var(--bg-hover)", marginBottom: 14 }} />
+                <div style={{ width: 80, height: 26, borderRadius: 6, background: "var(--bg-hover)", marginBottom: 6 }} />
+                <div style={{ width: 60, height: 12, borderRadius: 4, background: "var(--bg-hover)", marginBottom: 6 }} />
+                <div style={{ width: 100, height: 11, borderRadius: 4, background: "var(--bg-hover)" }} />
               </div>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            ))
+          ) : (
+            stats.map(stat => {
+              const Icon = stat.icon;
+              return (
+                <div key={stat.label} className="card card-hover" style={{ padding: 18 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                    <div
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 9,
+                        background: `${stat.color}18`,
+                        border: `1px solid ${stat.color}30`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Icon size={16} color={stat.color} />
+                    </div>
+                    <ArrowUpRight size={14} color="var(--text-muted)" />
+                  </div>
+                  <div style={{ fontSize: 26, fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.5px" }}>
+                    {stat.value}
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{stat.label}</div>
+                  <div style={{ fontSize: 11, color: stat.color, marginTop: 6, fontWeight: 500 }}>{stat.delta}</div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Two column layout */}
+        <div className="flex flex-col xl:flex-row gap-4">
+          {/* Recent Calls */}
+          <div className="card flex-1 w-full overflow-hidden p-0">
+            <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>Recent Activity</span>
+                {loading && <span className="spin" style={{ fontSize: 10, color: 'var(--text-muted)' }}>Updating...</span>}
+              </div>
+              <Link href="/dashboard/calls" style={{ fontSize: 11, color: "var(--accent-hover)", textDecoration: "none", display: "flex", alignItems: "center", gap: 3 }}>
+                View all logs <ArrowRight size={11} />
+              </Link>
+            </div>
+            <div className="overflow-x-auto w-full">
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "500px" }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--border)" }}>
                     {["Customer", "Service", "Outcome", "Time"].map(h => (
@@ -271,64 +269,64 @@ export default function OverviewPage() {
                 </tbody>
               </table>
             </div>
+          </div>
 
-            {/* Quick Actions */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div className="card" style={{ padding: 18 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>Quick Actions</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <Link href="/dashboard/agents" style={{ textDecoration: "none" }}>
-                    <button className="btn-primary" style={{ width: "100%", justifyContent: "center" }}>
-                      <Bot size={13} /> Open Agent Builder
-                    </button>
-                  </Link>
-                  <button className="btn-ghost" style={{ width: "100%", justifyContent: "center" }}>
-                    <Phone size={13} /> Start Test Call
+          {/* Quick Actions */}
+          <div className="flex flex-col gap-4 w-full xl:w-[340px] shrink-0">
+            <div className="card" style={{ padding: 18 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>Quick Actions</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <Link href="/dashboard/agents" style={{ textDecoration: "none" }}>
+                  <button className="btn-primary" style={{ width: "100%", justifyContent: "center" }}>
+                    <Bot size={13} /> Open Agent Builder
                   </button>
-                  <button className="btn-ghost" style={{ width: "100%", justifyContent: "center" }}>
-                    <Users size={13} /> Import Leads
-                  </button>
-                </div>
-              </div>
-
-              {/* Active agents status */}
-              <div className="card" style={{ padding: 18 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Agent Status</div>
-                {[
-                  { name: "Sofia", role: "Automated Service Booking", live: true },
-                ].map(agent => (
-                  <div key={agent.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <div
-                        style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: 7,
-                          background: agent.live ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "var(--bg-hover)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <Bot size={13} color={agent.live ? "white" : "var(--text-muted)"} />
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text-primary)" }}>{agent.name}</div>
-                        <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{agent.role}</div>
-                      </div>
-                    </div>
-                    {agent.live ? (
-                      <span className="badge badge-active" style={{ fontSize: 10 }}>Live</span>
-                    ) : (
-                      <span className="badge badge-draft" style={{ fontSize: 10 }}>Draft</span>
-                    )}
-                  </div>
-                ))}
+                </Link>
+                <button className="btn-ghost" style={{ width: "100%", justifyContent: "center" }}>
+                  <Phone size={13} /> Start Test Call
+                </button>
+                <button className="btn-ghost" style={{ width: "100%", justifyContent: "center" }}>
+                  <Users size={13} /> Import Leads
+                </button>
               </div>
             </div>
+
+            {/* Active agents status */}
+            <div className="card" style={{ padding: 18 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Agent Status</div>
+              {[
+                { name: "Sofia", role: "Automated Service Booking", live: true },
+              ].map(agent => (
+                <div key={agent.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 7,
+                        background: agent.live ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "var(--bg-hover)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Bot size={13} color={agent.live ? "white" : "var(--text-muted)"} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text-primary)" }}>{agent.name}</div>
+                      <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{agent.role}</div>
+                    </div>
+                  </div>
+                  {agent.live ? (
+                    <span className="badge badge-active" style={{ fontSize: 10 }}>Live</span>
+                  ) : (
+                    <span className="badge badge-draft" style={{ fontSize: 10 }}>Draft</span>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
-        </main>
-      </div>
-    </div>
+        </div>
+      </main>
+    </>
   );
 }

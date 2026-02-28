@@ -1,6 +1,6 @@
 "use client";
 
-import Sidebar from "@/components/sidebar/Sidebar";
+
 import Topbar from "@/components/sidebar/Topbar";
 import { useState, useEffect, useCallback } from "react";
 import AgentConfigPanel from "@/components/agent-builder/AgentConfigPanel";
@@ -103,144 +103,140 @@ export default function AgentsPage() {
     };
 
     return (
-        <div style={{ display: "flex", height: "100vh", background: "var(--bg-base)", overflow: "hidden" }}>
-            <Sidebar />
+        <>
+            <Topbar
+                title="Agent Builder"
+                subtitle="Configure and deploy your AI voice agents"
+            />
 
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                <Topbar
-                    title="Agent Builder"
-                    subtitle="Configure and deploy your AI voice agents"
-                />
-
-                {loading ? (
-                    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, color: "var(--text-muted)" }}>
-                        <Loader2 size={20} className="spin" /> Loading agent config...
-                    </div>
-                ) : error && !config ? (
-                    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 14 }}>
-                        {error}
-                    </div>
-                ) : config ? (
-                    <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-                        {/* Config area */}
-                        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                            {/* Agent Topbar */}
-                            <div
-                                style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "space-between",
-                                    padding: "12px 20px",
-                                    borderBottom: "1px solid var(--border)",
-                                    background: "var(--bg-surface)",
-                                    flexShrink: 0,
-                                }}
-                            >
-                                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                                    <div
-                                        style={{
-                                            width: 36,
-                                            height: 36,
-                                            borderRadius: 9,
-                                            background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            boxShadow: "0 0 12px rgba(99,102,241,0.35)",
-                                        }}
-                                    >
-                                        <Cpu size={17} color="white" />
-                                    </div>
-                                    <div>
-                                        <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>
-                                            {config.name || "Untitled Agent"}
-                                        </div>
-                                        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                                            Service Scheduling · Westside Auto
-                                        </div>
-                                    </div>
-                                    <span className="badge badge-active" style={{ marginLeft: 4 }}>Active</span>
+            {loading ? (
+                <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, color: "var(--text-muted)" }}>
+                    <Loader2 size={20} className="spin" /> Loading agent config...
+                </div>
+            ) : error && !config ? (
+                <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 14 }}>
+                    {error}
+                </div>
+            ) : config ? (
+                <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+                    {/* Config area */}
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                        {/* Agent Topbar */}
+                        <div
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                padding: "12px 20px",
+                                borderBottom: "1px solid var(--border)",
+                                background: "var(--bg-surface)",
+                                flexShrink: 0,
+                            }}
+                        >
+                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                                <div
+                                    style={{
+                                        width: 36,
+                                        height: 36,
+                                        borderRadius: 9,
+                                        background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        boxShadow: "0 0 12px rgba(99,102,241,0.35)",
+                                    }}
+                                >
+                                    <Cpu size={17} color="white" />
                                 </div>
-
-                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                    {error && <span style={{ fontSize: 11, color: "var(--danger)" }}>{error}</span>}
-                                    <button
-                                        className="btn-primary"
-                                        onClick={handleSave}
-                                        disabled={saving}
-                                        style={{ gap: 6, minWidth: 120, justifyContent: "center" }}
-                                    >
-                                        {saving ? (
-                                            <><Loader2 size={13} className="spin" /> Saving...</>
-                                        ) : saved ? (
-                                            <><Check size={13} /> Saved!</>
-                                        ) : (
-                                            <><Save size={13} /> Save Agent</>
-                                        )}
-                                    </button>
+                                <div>
+                                    <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>
+                                        {config.name || "Untitled Agent"}
+                                    </div>
+                                    <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                                        Service Scheduling · Westside Auto
+                                    </div>
                                 </div>
+                                <span className="badge badge-active" style={{ marginLeft: 4 }}>Active</span>
                             </div>
 
-                            {/* Tabs */}
-                            <div
-                                style={{
-                                    display: "flex",
-                                    gap: 0,
-                                    borderBottom: "1px solid var(--border)",
-                                    padding: "0 20px",
-                                    background: "var(--bg-surface)",
-                                    flexShrink: 0,
-                                }}
-                            >
-                                {(["config", "tools"] as const).map(tab => (
-                                    <button
-                                        key={tab}
-                                        onClick={() => setActiveTab(tab)}
-                                        style={{
-                                            padding: "10px 16px",
-                                            fontSize: 13,
-                                            fontWeight: activeTab === tab ? 600 : 400,
-                                            color: activeTab === tab ? "var(--accent-hover)" : "var(--text-muted)",
-                                            background: "none",
-                                            border: "none",
-                                            borderBottom: `2px solid ${activeTab === tab ? "var(--accent)" : "transparent"}`,
-                                            cursor: "pointer",
-                                            textTransform: "capitalize",
-                                            transition: "color 0.15s",
-                                            marginBottom: -1,
-                                        }}
-                                    >
-                                        {tab === "config" ? "Configuration" : "Tools & Actions"}
-                                    </button>
-                                ))}
-                            </div>
-
-                            {/* Scrollable content */}
-                            <div
-                                style={{
-                                    flex: 1,
-                                    overflowY: "auto",
-                                    padding: "20px",
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    gap: 0,
-                                }}
-                            >
-                                {activeTab === "config" ? (
-                                    <AgentConfigPanel
-                                        config={config}
-                                        onUpdateField={updateField}
-                                        onUpdateVoice={updateVoice}
-                                    />
-                                ) : (
-                                    <ToolsPanel tools={config.tools} />
-                                )}
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                {error && <span style={{ fontSize: 11, color: "var(--danger)" }}>{error}</span>}
+                                <button
+                                    className="btn-primary"
+                                    onClick={handleSave}
+                                    disabled={saving}
+                                    style={{ gap: 6, minWidth: 120, justifyContent: "center" }}
+                                >
+                                    {saving ? (
+                                        <><Loader2 size={13} className="spin" /> Saving...</>
+                                    ) : saved ? (
+                                        <><Check size={13} /> Saved!</>
+                                    ) : (
+                                        <><Save size={13} /> Save Agent</>
+                                    )}
+                                </button>
                             </div>
                         </div>
+
+                        {/* Tabs */}
+                        <div
+                            style={{
+                                display: "flex",
+                                gap: 0,
+                                borderBottom: "1px solid var(--border)",
+                                padding: "0 20px",
+                                background: "var(--bg-surface)",
+                                flexShrink: 0,
+                            }}
+                        >
+                            {(["config", "tools"] as const).map(tab => (
+                                <button
+                                    key={tab}
+                                    onClick={() => setActiveTab(tab)}
+                                    style={{
+                                        padding: "10px 16px",
+                                        fontSize: 13,
+                                        fontWeight: activeTab === tab ? 600 : 400,
+                                        color: activeTab === tab ? "var(--accent-hover)" : "var(--text-muted)",
+                                        background: "none",
+                                        border: "none",
+                                        borderBottom: `2px solid ${activeTab === tab ? "var(--accent)" : "transparent"}`,
+                                        cursor: "pointer",
+                                        textTransform: "capitalize",
+                                        transition: "color 0.15s",
+                                        marginBottom: -1,
+                                    }}
+                                >
+                                    {tab === "config" ? "Configuration" : "Tools & Actions"}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Scrollable content */}
+                        <div
+                            style={{
+                                flex: 1,
+                                overflowY: "auto",
+                                padding: "20px",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 0,
+                            }}
+                        >
+                            {activeTab === "config" ? (
+                                <AgentConfigPanel
+                                    config={config}
+                                    onUpdateField={updateField}
+                                    onUpdateVoice={updateVoice}
+                                />
+                            ) : (
+                                <ToolsPanel tools={config.tools} />
+                            )}
+                        </div>
                     </div>
-                ) : null}
-            </div>
+                </div>
+            ) : null}
             <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } } .spin { animation: spin 1s linear infinite; }`}</style>
-        </div>
+        </>
     );
 }
