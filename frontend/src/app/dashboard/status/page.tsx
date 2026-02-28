@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Sidebar from "@/components/sidebar/Sidebar";
+
 import Topbar from "@/components/sidebar/Topbar";
 import {
     CheckCircle, AlertTriangle, XCircle, Clock,
@@ -108,161 +108,157 @@ export default function StatusPage() {
                 : { label: "Degraded Performance", color: "yellow" };
 
     return (
-        <div style={{ display: "flex", height: "100vh", background: "var(--bg-base)", overflow: "hidden" }}>
-            <Sidebar />
+        <>
+            <Topbar title="System Status" subtitle="Real-time service health monitoring" />
 
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                <Topbar title="System Status" subtitle="Real-time service health monitoring" />
-
-                <main style={{ flex: 1, overflowY: "auto", padding: "24px 28px" }}>
-                    {loading ? (
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, gap: 10, color: "var(--text-muted)" }}>
-                            <RefreshCw size={16} className="spin" /> Loading status...
-                        </div>
-                    ) : error ? (
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "var(--text-muted)", fontSize: 14 }}>
-                            {error}
-                        </div>
-                    ) : (
-                        <>
-                            {/* Overall Status Banner */}
-                            <div
-                                className="card"
-                                style={{
-                                    padding: "24px 28px",
-                                    marginBottom: 24,
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "space-between",
-                                }}
+            <main style={{ flex: 1, overflowY: "auto", padding: "24px 28px" }}>
+                {loading ? (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, gap: 10, color: "var(--text-muted)" }}>
+                        <RefreshCw size={16} className="spin" /> Loading status...
+                    </div>
+                ) : error ? (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: "var(--text-muted)", fontSize: 14 }}>
+                        {error}
+                    </div>
+                ) : (
+                    <>
+                        {/* Overall Status Banner */}
+                        <div
+                            className="card"
+                            style={{
+                                padding: "24px 28px",
+                                marginBottom: 24,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                            }}
+                        >
+                            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                                {statusIcon(overallStatus.color)}
+                                <div>
+                                    <div style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)" }}>
+                                        {overallStatus.label}
+                                    </div>
+                                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
+                                        Monitoring {monitors.length} service{monitors.length !== 1 ? "s" : ""}
+                                    </div>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => fetchStatus(true)}
+                                className="btn-ghost"
+                                style={{ gap: 6 }}
+                                disabled={refreshing}
                             >
-                                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                                    {statusIcon(overallStatus.color)}
-                                    <div>
-                                        <div style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)" }}>
-                                            {overallStatus.label}
+                                <RefreshCw size={13} className={refreshing ? "spin" : ""} />
+                                {refreshing ? "Refreshing..." : "Refresh"}
+                            </button>
+                        </div>
+
+                        {/* Monitor Cards */}
+                        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                            {monitors.map(monitor => (
+                                <div key={monitor.id} className="card" style={{ padding: 0, overflow: "hidden" }}>
+                                    {/* Header */}
+                                    <div style={{
+                                        padding: "16px 20px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "space-between",
+                                        borderBottom: "1px solid var(--border)",
+                                    }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                                            <div style={{
+                                                width: 36, height: 36, borderRadius: 9,
+                                                background: `${uptimeBarColor(monitor.uptimeDay)}18`,
+                                                border: `1px solid ${uptimeBarColor(monitor.uptimeDay)}30`,
+                                                display: "flex", alignItems: "center", justifyContent: "center",
+                                            }}>
+                                                <Globe size={16} color={uptimeBarColor(monitor.uptimeDay)} />
+                                            </div>
+                                            <div>
+                                                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+                                                    {monitor.name}
+                                                </div>
+                                                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>
+                                                    {monitor.url}
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
-                                            Monitoring {monitors.length} service{monitors.length !== 1 ? "s" : ""}
+                                        <span style={statusBadgeStyle(monitor.statusColor)}>
+                                            {statusIcon(monitor.statusColor)}
+                                            {monitor.status}
+                                        </span>
+                                    </div>
+
+                                    {/* Stats Grid */}
+                                    <div style={{
+                                        display: "grid",
+                                        gridTemplateColumns: "repeat(4, 1fr)",
+                                        gap: 0,
+                                    }}>
+                                        {[
+                                            { label: "24h Uptime", value: `${monitor.uptimeDay.toFixed(2)}%`, pct: monitor.uptimeDay },
+                                            { label: "7d Uptime", value: `${monitor.uptimeWeek.toFixed(2)}%`, pct: monitor.uptimeWeek },
+                                            { label: "30d Uptime", value: `${monitor.uptimeMonth.toFixed(2)}%`, pct: monitor.uptimeMonth },
+                                            { label: "Response Time", value: `${monitor.responseTime}ms`, pct: null },
+                                        ].map((stat, i) => (
+                                            <div
+                                                key={stat.label}
+                                                style={{
+                                                    padding: "16px 20px",
+                                                    borderRight: i < 3 ? "1px solid var(--border)" : "none",
+                                                }}
+                                            >
+                                                <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                                                    {stat.label}
+                                                </div>
+                                                <div style={{
+                                                    fontSize: 22, fontWeight: 700, letterSpacing: "-0.5px",
+                                                    color: stat.pct !== null ? uptimeBarColor(stat.pct) : "var(--text-primary)",
+                                                }}>
+                                                    {stat.value}
+                                                </div>
+                                                {stat.pct !== null && (
+                                                    <div style={{
+                                                        marginTop: 8, height: 4, borderRadius: 2,
+                                                        background: "var(--bg-hover)", overflow: "hidden",
+                                                    }}>
+                                                        <div style={{
+                                                            height: "100%", borderRadius: 2,
+                                                            width: `${Math.min(stat.pct, 100)}%`,
+                                                            background: uptimeBarColor(stat.pct),
+                                                            transition: "width 0.5s ease",
+                                                        }} />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Footer */}
+                                    <div style={{
+                                        padding: "10px 20px",
+                                        borderTop: "1px solid var(--border)",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "space-between",
+                                        background: "var(--bg-surface)",
+                                    }}>
+                                        <div style={{ fontSize: 11, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
+                                            <Wifi size={11} /> Last checked: {formatLastChecked(monitor.lastChecked)}
+                                        </div>
+                                        <div style={{ fontSize: 11, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
+                                            Powered by UptimeRobot <ArrowUpRight size={10} />
                                         </div>
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => fetchStatus(true)}
-                                    className="btn-ghost"
-                                    style={{ gap: 6 }}
-                                    disabled={refreshing}
-                                >
-                                    <RefreshCw size={13} className={refreshing ? "spin" : ""} />
-                                    {refreshing ? "Refreshing..." : "Refresh"}
-                                </button>
-                            </div>
-
-                            {/* Monitor Cards */}
-                            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                                {monitors.map(monitor => (
-                                    <div key={monitor.id} className="card" style={{ padding: 0, overflow: "hidden" }}>
-                                        {/* Header */}
-                                        <div style={{
-                                            padding: "16px 20px",
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "space-between",
-                                            borderBottom: "1px solid var(--border)",
-                                        }}>
-                                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                                                <div style={{
-                                                    width: 36, height: 36, borderRadius: 9,
-                                                    background: `${uptimeBarColor(monitor.uptimeDay)}18`,
-                                                    border: `1px solid ${uptimeBarColor(monitor.uptimeDay)}30`,
-                                                    display: "flex", alignItems: "center", justifyContent: "center",
-                                                }}>
-                                                    <Globe size={16} color={uptimeBarColor(monitor.uptimeDay)} />
-                                                </div>
-                                                <div>
-                                                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
-                                                        {monitor.name}
-                                                    </div>
-                                                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>
-                                                        {monitor.url}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <span style={statusBadgeStyle(monitor.statusColor)}>
-                                                {statusIcon(monitor.statusColor)}
-                                                {monitor.status}
-                                            </span>
-                                        </div>
-
-                                        {/* Stats Grid */}
-                                        <div style={{
-                                            display: "grid",
-                                            gridTemplateColumns: "repeat(4, 1fr)",
-                                            gap: 0,
-                                        }}>
-                                            {[
-                                                { label: "24h Uptime", value: `${monitor.uptimeDay.toFixed(2)}%`, pct: monitor.uptimeDay },
-                                                { label: "7d Uptime", value: `${monitor.uptimeWeek.toFixed(2)}%`, pct: monitor.uptimeWeek },
-                                                { label: "30d Uptime", value: `${monitor.uptimeMonth.toFixed(2)}%`, pct: monitor.uptimeMonth },
-                                                { label: "Response Time", value: `${monitor.responseTime}ms`, pct: null },
-                                            ].map((stat, i) => (
-                                                <div
-                                                    key={stat.label}
-                                                    style={{
-                                                        padding: "16px 20px",
-                                                        borderRight: i < 3 ? "1px solid var(--border)" : "none",
-                                                    }}
-                                                >
-                                                    <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
-                                                        {stat.label}
-                                                    </div>
-                                                    <div style={{
-                                                        fontSize: 22, fontWeight: 700, letterSpacing: "-0.5px",
-                                                        color: stat.pct !== null ? uptimeBarColor(stat.pct) : "var(--text-primary)",
-                                                    }}>
-                                                        {stat.value}
-                                                    </div>
-                                                    {stat.pct !== null && (
-                                                        <div style={{
-                                                            marginTop: 8, height: 4, borderRadius: 2,
-                                                            background: "var(--bg-hover)", overflow: "hidden",
-                                                        }}>
-                                                            <div style={{
-                                                                height: "100%", borderRadius: 2,
-                                                                width: `${Math.min(stat.pct, 100)}%`,
-                                                                background: uptimeBarColor(stat.pct),
-                                                                transition: "width 0.5s ease",
-                                                            }} />
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        {/* Footer */}
-                                        <div style={{
-                                            padding: "10px 20px",
-                                            borderTop: "1px solid var(--border)",
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "space-between",
-                                            background: "var(--bg-surface)",
-                                        }}>
-                                            <div style={{ fontSize: 11, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
-                                                <Wifi size={11} /> Last checked: {formatLastChecked(monitor.lastChecked)}
-                                            </div>
-                                            <div style={{ fontSize: 11, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
-                                                Powered by UptimeRobot <ArrowUpRight size={10} />
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </>
-                    )}
-                </main>
-            </div>
+                            ))}
+                        </div>
+                    </>
+                )}
+            </main>
             <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } } .spin { animation: spin 1s linear infinite; }`}</style>
-        </div>
+        </>
     );
 }

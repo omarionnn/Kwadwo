@@ -78,25 +78,11 @@ export default function SaafiDefinition() {
                     transition={{ type: "spring", stiffness: 100, damping: 15, duration: 0.4 }}
                     style={{ position: "relative", zIndex: 10 }}
                 >
-                    <h2 style={{
-                        fontSize: "6rem",
-                        fontWeight: 900,
-                        fontStyle: "italic",
-                        color: "#0f172a",
-                        margin: "0 0 20px 0",
-                        letterSpacing: "-2px",
-                        lineHeight: 1
-                    }}>
+                    <h2 className="text-6xl md:text-[6rem] font-black italic text-slate-900 mb-[20px] tracking-[-2px] leading-none">
                         &apos;Saafi&apos;
                     </h2>
 
-                    <p style={{
-                        fontSize: "2rem",
-                        color: "#334155",
-                        lineHeight: 1.4,
-                        fontWeight: 400,
-                        margin: 0
-                    }}>
+                    <p className="text-2xl md:text-[2rem] text-slate-700 leading-[1.4] font-normal m-0">
                         <strong style={{ fontWeight: 700, color: "#0f172a" }}>(verb.)</strong> The process of intelligently automating customer interactions and seamlessly connecting your dealership&apos;s CRM and DMS.
                     </p>
                 </motion.div>
