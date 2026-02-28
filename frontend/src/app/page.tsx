@@ -4,9 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { SignInButton, SignedIn, SignedOut } from "@clerk/nextjs";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
-import { Bot, CalendarCheck, ArrowRight, Zap, BarChart3, Clock, CheckCircle2, TrendingUp, Mic, MicOff, Loader2 } from "lucide-react";
+import { Bot, ArrowRight, Zap, CheckCircle2, Mic, MicOff, Loader2 } from "lucide-react";
 import Vapi from "@vapi-ai/web";
 import IntegrationsSection from "@/components/landing/IntegrationsSection";
+import SaafiDefinition from "@/components/landing/SaafiDefinition";
 import dynamic from "next/dynamic";
 
 const ClientCalendlyPopup = dynamic(() => import("@/components/CalendlyPopup"), {
@@ -233,6 +234,9 @@ export default function LandingPage() {
 
 
             </motion.header>
+
+            {/* Dictionary Definition Section */}
+            <SaafiDefinition />
 
             {/* Integrations Marquee Section */}
             <IntegrationsSection />
