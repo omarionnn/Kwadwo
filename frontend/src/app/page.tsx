@@ -167,8 +167,19 @@ export default function LandingPage() {
                     </div>
                     Saafi AI
                 </div>
-                <div style={{ display: "flex", gap: 24, fontSize: 14, fontWeight: 500, color: "#475569" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 24, fontSize: 14, fontWeight: 500, color: "#475569" }}>
                     <a href="#demo" style={{ textDecoration: "none", color: "inherit", transition: "color 0.2s" }} onMouseOver={(e) => e.currentTarget.style.color = "#2563eb"} onMouseOut={(e) => e.currentTarget.style.color = "#475569"}>Interactive Demo</a>
+
+                    <SignedOut>
+                        <SignInButton mode="modal" fallbackRedirectUrl="/dashboard">
+                            <button style={{ background: "none", border: "none", padding: 0, font: "inherit", color: "inherit", cursor: "pointer", transition: "color 0.2s" }} onMouseOver={(e) => e.currentTarget.style.color = "#2563eb"} onMouseOut={(e) => e.currentTarget.style.color = "#475569"}>Dealer Login</button>
+                        </SignInButton>
+                    </SignedOut>
+                    <SignedIn>
+                        <Link href="/dashboard" style={{ textDecoration: "none", color: "inherit", transition: "color 0.2s" }} onMouseOver={(e) => e.currentTarget.style.color = "#2563eb"} onMouseOut={(e) => e.currentTarget.style.color = "#475569"}>
+                            Dealer Login
+                        </Link>
+                    </SignedIn>
                 </div>
             </nav>
 
@@ -332,22 +343,8 @@ export default function LandingPage() {
                     © 2026 Saafi AI. All rights reserved.
                 </div>
 
-                {/* Admin Login Button */}
-                <div style={{ marginTop: 20, paddingTop: 20, borderTop: "1px solid #f1f5f9", width: "100%", textAlign: "center" }}>
-                    <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 12 }}>Staff & Administration</p>
-
-                    <SignedOut>
-                        <SignInButton mode="modal" fallbackRedirectUrl="/dashboard">
-                            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} style={{ padding: "8px 16px", backgroundColor: "transparent", color: "#475569", borderRadius: 6, fontWeight: 500, fontSize: 13, border: "1px solid #cbd5e1", cursor: "pointer", transition: "background 0.2s" }} onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "#f1f5f9" }} onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "transparent" }}>Admin Login</motion.button>
-                        </SignInButton>
-                    </SignedOut>
-
-                    <SignedIn>
-                        <Link href="/dashboard" style={{ textDecoration: "none" }}>
-                            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} style={{ padding: "8px 16px", backgroundColor: "#0f172a", color: "white", borderRadius: 6, fontWeight: 500, fontSize: 13, border: "none", cursor: "pointer" }}>Go to Dashboard</motion.button>
-                        </Link>
-                    </SignedIn>
-                </div>
+                {/* Admin Login Removed - Migrated to Dealer Login on Interactive Demo */}
+                <div style={{ height: 20 }}></div>
             </footer>
 
             {/* Global Style for Keyframes */}
